@@ -111,10 +111,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (function_exists('logAdminAction')) {
             logAdminAction(
                 'service_status_change',
-                'service_request',
-                $id,
                 'تم تغيير حالة طلب الخدمة رقم #' . $id .
-                ' من "' . $oldLabel . '" إلى "' . $newLabel . '".'
+                ' من "' . $oldLabel . '" إلى "' . $newLabel . '".',
+                'service_request',
+                $id
             );
         }
 
@@ -644,7 +644,7 @@ $csrfToken = csrfToken();
                 <span class="label">المبلغ</span>
 
                 <div class="value amount">
-                    <?= e(formatMoney((float) $request['amount'])) ?>
+                    <?= e(formatMoney($request['amount'])) ?>
                     SDG
                 </div>
             </div>
@@ -653,7 +653,7 @@ $csrfToken = csrfToken();
                 <span class="label">الرسوم</span>
 
                 <div class="value">
-                    <?= e(formatMoney((float) $request['fee'])) ?>
+                    <?= e(formatMoney($request['fee'])) ?>
                     SDG
                 </div>
             </div>
@@ -662,7 +662,7 @@ $csrfToken = csrfToken();
                 <span class="label">الإجمالي</span>
 
                 <div class="value amount">
-                    <?= e(formatMoney((float) $request['total_amount'])) ?>
+                    <?= e(formatMoney($request['total_amount'])) ?>
                     SDG
                 </div>
             </div>

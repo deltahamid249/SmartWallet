@@ -1,33 +1,25 @@
 <?php
-
 declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../config/database.php';
 
 requireLogin();
 
-$csrfToken = csrfToken();
-$actionToken = actionToken('education_request');
-
-$successMessage = '';
-$errorMessage = '';
+$userId = currentUserId();
 
 $providers = [
-    'university' => 'جامعة',
-    'school' => 'مدرسة',
-    'institute' => 'معهد',
-    'training' => 'مركز تدريب',
-    'other' => 'جهة تعليمية أخرى',
+    'zain' => 'زين',
+    'sudani' => 'سوداني',
+    'mtn' => 'MTN',
 ];
 
 $statusLabels = [
     'pending' => 'قيد المراجعة',
-    'processing' => 'قيد التنفيذ',
+    'processing' => 'قيد المعالجة',
     'completed' => 'مكتمل',
     'failed' => 'فشل',
-    'cancelled' => 'ملغي',
+    'cancelled' => 'ملغى',
 ];
 
 $statusClasses = [
@@ -39,170 +31,157 @@ $statusClasses = [
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    $csrf = $_POST['csrf_token'] ?? null;
+    $actionToken = $_POST['action_token'] ?? null;
+
+    if (!verifyCsrf($csrf)) {
+        flash('error', 'جلسة الحماية غير صالحة. أعد المحاولة.');
+        header('Location: recharge.php');
+        exit;
+    }
+
+    if (!consumeActionToken('recharge', $actionToken)) {
+        flash('error', 'رمز العملية غير صالح أو تم استخدامه مسبقًا.');
+        header('Location: recharge.php');
+        exit;
+    }
+
+    $provider = trim((string) ($_POST['provider'] ?? ''));
+    $phone = trim((string) ($_POST['phone'] ?? ''));
+    $amountRaw = trim((string) ($_POST['amount'] ?? ''));
+
+    if (!isset($providers[$provider])) {
+        flash('error', 'اختر شركة اتصالات صحيحة.');
+        header('Location: recharge.php');
+        exit;
+    }
+
+    $phone = preg_replace('/\s+/', '', $phone) ?? '';
+
+    if (!preg_match('/^[0-9]{9,15}$/', $phone)) {
+        flash('error', 'أدخل رقم هاتف صحيحًا.');
+        header('Location: recharge.php');
+        exit;
+    }
+
+    $amount = normalizeAmount($amountRaw);
+
+    if ($amount <= 0) {
+        flash('error', 'أدخل مبلغًا صحيحًا.');
+        header('Location: recharge.php');
+        exit;
+    }
+
+    if ($amount < 100) {
+        flash('error', 'الحد الأدنى للشحن هو 100 جنيه.');
+        header('Location: recharge.php');
+        exit;
+    }
+
+    if ($amount > 100000) {
+        flash('error', 'الحد الأقصى للشحن هو 100,000 جنيه.');
+        header('Location: recharge.php');
+        exit;
+    }
+
+    $fee = 0.00;
+    $totalAmount = $amount;
+    $reference = 'RCH-' . strtoupper(bin2hex(random_bytes(6)));
+
     try {
-        verifyCsrf($_POST['csrf_token'] ?? '');
-
-        if (!consumeActionToken(
-            'education_request',
-            $_POST['action_token'] ?? ''
-        )) {
-            throw new RuntimeException(
-                'انتهت صلاحية الطلب أو تم استخدامه مسبقًا.'
-            );
-        }
-
-        $provider = trim((string) ($_POST['provider'] ?? ''));
-        $accountNumber = trim(
-            (string) ($_POST['account_number'] ?? '')
-        );
-        $amountRaw = trim(
-            (string) ($_POST['amount'] ?? '')
-        );
-
-        if (!array_key_exists($provider, $providers)) {
-            throw new RuntimeException(
-                'يرجى اختيار نوع الجهة التعليمية.'
-            );
-        }
-
-        if ($accountNumber === '') {
-            throw new RuntimeException(
-                'يرجى إدخال رقم الطالب أو رقم الحساب.'
-            );
-        }
-
-        if (mb_strlen($accountNumber) > 100) {
-            throw new RuntimeException(
-                'رقم الطالب أو الحساب طويل جدًا.'
-            );
-        }
-
-        $amount = normalizeAmount($amountRaw);
-
-        if (
-            $amount === null ||
-            bccomp($amount, '0.00', 2) <= 0
-        ) {
-            throw new RuntimeException(
-                'يرجى إدخال مبلغ صحيح.'
-            );
-        }
-
-        if (bccomp($amount, '100.00', 2) < 0) {
-            throw new RuntimeException(
-                'الحد الأدنى للدفع هو 100 SDG.'
-            );
-        }
-
-        if (bccomp($amount, '1000000.00', 2) > 0) {
-            throw new RuntimeException(
-                'الحد الأقصى للدفع هو 1,000,000 SDG.'
-            );
-        }
-
-        $fee = '0.00';
-        $totalAmount = $amount;
-
-        $reference =
-            'EDU-' . strtoupper(bin2hex(random_bytes(6)));
 
         $pdo->beginTransaction();
 
         $stmt = $pdo->prepare("
-            INSERT INTO service_requests (
+            INSERT INTO service_requests
+            (
                 user_id,
                 service_type,
                 provider,
                 phone_number,
-                account_number,
                 amount,
                 fee,
                 total_amount,
                 reference,
-                status
+                status,
+                response_message
             )
-            VALUES (
+            VALUES
+            (
                 :user_id,
-                'education',
+                'mobile_recharge',
                 :provider,
-                NULL,
-                :account_number,
+                :phone_number,
                 :amount,
                 :fee,
                 :total_amount,
                 :reference,
-                'pending'
+                'pending',
+                :response_message
             )
         ");
 
+        $responseMessage =
+            'تم استلام طلب الشحن بنجاح، وهو الآن قيد المراجعة. ' .
+            'التنفيذ الفعلي يتطلب ربط المنصة بالتكامل الرسمي لمزود الخدمة.';
+
         $stmt->execute([
-            ':user_id' => currentUserId(),
-            ':provider' => $provider,
-            ':account_number' => $accountNumber,
+            ':user_id' => $userId,
+            ':provider' => $providers[$provider],
+            ':phone_number' => $phone,
             ':amount' => $amount,
             ':fee' => $fee,
             ':total_amount' => $totalAmount,
             ':reference' => $reference,
+            ':response_message' => $responseMessage,
         ]);
 
         $requestId = (int) $pdo->lastInsertId();
 
-        createAdminNotification(
-            'طلب خدمة تعليمية جديد',
-            'تم إنشاء طلب خدمة تعليمية جديد بالمرجع '
-            . $reference . '.',
-            'service_request',
-            'service_request',
-            $requestId
-        );
+        if (function_exists('createAdminNotification')) {
+            createAdminNotification(
+                'طلب شحن هاتف جديد',
+                'تم إنشاء طلب شحن ' .
+                $providers[$provider] .
+                ' للرقم ' .
+                $phone .
+                '. المرجع: ' .
+                $reference,
+                'recharge',
+                'service_request',
+                $requestId
+            );
+        }
 
         $pdo->commit();
 
         flash(
             'success',
-            'تم إنشاء الطلب التعليمي بنجاح. رقم المرجع: '
-            . $reference
+            'تم إنشاء طلب الشحن بنجاح. المرجع: ' . $reference
         );
 
-        header(
-            'Location: request.php?id=' . $requestId
-        );
-        exit;
     } catch (Throwable $e) {
+
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
         }
 
-        error_log(
-            'Education request error: '
-            . $e->getMessage()
+        flash(
+            'error',
+            'حدث خطأ أثناء إنشاء طلب الشحن.'
         );
-
-        $errorMessage = $e instanceof RuntimeException
-            ? $e->getMessage()
-            : 'حدث خطأ أثناء إنشاء الطلب التعليمي. حاول مرة أخرى.';
     }
-}
 
-if (isset($_SESSION['flash_success'])) {
-    $successMessage =
-        (string) $_SESSION['flash_success'];
-
-    unset($_SESSION['flash_success']);
-}
-
-if (isset($_SESSION['flash_error'])) {
-    $errorMessage =
-        (string) $_SESSION['flash_error'];
-
-    unset($_SESSION['flash_error']);
+    header('Location: recharge.php');
+    exit;
 }
 
 $stmt = $pdo->prepare("
     SELECT
         id,
         provider,
-        account_number,
+        phone_number,
         amount,
         fee,
         total_amount,
@@ -213,30 +192,27 @@ $stmt = $pdo->prepare("
         updated_at
     FROM service_requests
     WHERE user_id = :user_id
-      AND service_type = 'education'
+      AND service_type = 'mobile_recharge'
     ORDER BY id DESC
-    LIMIT 100
+    LIMIT 10
 ");
 
 $stmt->execute([
-    ':user_id' => currentUserId(),
+    ':user_id' => $userId,
 ]);
 
 $requests = $stmt->fetchAll();
 
-function educationProviderLabel(
-    string $provider,
-    array $providers
-): string {
-    return $providers[$provider] ?? $provider;
-}
+$successMessage = flash('success');
+$errorMessage = flash('error');
 
+$actionToken = actionToken('recharge');
+$csrfToken = csrfToken();
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 
 <head>
-
     <meta charset="UTF-8">
 
     <meta
@@ -244,19 +220,18 @@ function educationProviderLabel(
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>الخدمات التعليمية</title>
+    <title>شحن الهاتف</title>
 
     <style>
-
         * {
             box-sizing: border-box;
         }
 
         body {
             margin: 0;
-            background: #f3f4f6;
-            color: #111827;
             font-family: Tahoma, Arial, sans-serif;
+            background: #f5f7fb;
+            color: #111827;
         }
 
         .container {
@@ -266,9 +241,10 @@ function educationProviderLabel(
 
         .topbar {
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
             gap: 15px;
+            flex-wrap: wrap;
             margin-bottom: 20px;
         }
 
@@ -334,8 +310,7 @@ function educationProviderLabel(
 
         .grid {
             display: grid;
-            grid-template-columns:
-                repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 15px;
         }
 
@@ -453,7 +428,6 @@ function educationProviderLabel(
         }
 
         @media (max-width: 650px) {
-
             .container {
                 width: min(100% - 20px, 1050px);
                 margin: 18px auto;
@@ -475,11 +449,8 @@ function educationProviderLabel(
                 width: 100%;
                 text-align: center;
             }
-
         }
-
     </style>
-
 </head>
 
 <body>
@@ -488,7 +459,7 @@ function educationProviderLabel(
 
     <div class="topbar">
 
-        <h1>🎓 الخدمات التعليمية</h1>
+        <h1>📱 شحن الهاتف</h1>
 
         <a
             class="back"
@@ -500,30 +471,26 @@ function educationProviderLabel(
     </div>
 
     <?php if ($successMessage): ?>
-
         <div class="success">
             <?= e($successMessage) ?>
         </div>
-
     <?php endif; ?>
 
     <?php if ($errorMessage): ?>
-
         <div class="error">
             <?= e($errorMessage) ?>
         </div>
-
     <?php endif; ?>
 
     <div class="notice">
-        ⚠️ يتم حاليًا تسجيل الطلب التعليمي ومتابعته من لوحة الإدارة.
-        التنفيذ الآلي للدفع أو التسجيل يحتاج إلى تكامل رسمي مع الجهة
-        التعليمية أو مزود دفع معتمد.
+        ⚠️ يتم حاليًا تسجيل طلب الشحن ومتابعته من لوحة الإدارة.
+        التنفيذ الآلي الفعلي يحتاج إلى تكامل رسمي مع شركة الاتصالات أو
+        مزود دفع معتمد.
     </div>
 
     <div class="card">
 
-        <h2>إنشاء طلب خدمة تعليمية</h2>
+        <h2>إنشاء طلب شحن</h2>
 
         <form method="post">
 
@@ -542,9 +509,8 @@ function educationProviderLabel(
             <div class="grid">
 
                 <div>
-
                     <label for="provider">
-                        نوع الجهة التعليمية
+                        شركة الاتصالات
                     </label>
 
                     <select
@@ -552,48 +518,39 @@ function educationProviderLabel(
                         name="provider"
                         required
                     >
-
                         <option value="">
-                            اختر الجهة
+                            اختر الشركة
                         </option>
 
-                        <?php foreach (
-                            $providers as $value => $label
-                        ): ?>
+                        <?php foreach ($providers as $value => $label): ?>
 
-                            <option
-                                value="<?= e($value) ?>"
-                            >
+                            <option value="<?= e($value) ?>">
                                 <?= e($label) ?>
                             </option>
 
                         <?php endforeach; ?>
 
                     </select>
-
                 </div>
 
                 <div>
-
-                    <label for="account_number">
-                        رقم الطالب أو الحساب
+                    <label for="phone">
+                        رقم الهاتف
                     </label>
 
                     <input
-                        id="account_number"
-                        type="text"
-                        name="account_number"
-                        maxlength="100"
-                        placeholder="أدخل الرقم"
+                        id="phone"
+                        type="tel"
+                        name="phone"
+                        inputmode="numeric"
+                        placeholder="مثال: 0912345678"
                         required
                     >
-
                 </div>
 
                 <div>
-
                     <label for="amount">
-                        مبلغ الخدمة
+                        مبلغ الشحن
                     </label>
 
                     <input
@@ -601,18 +558,17 @@ function educationProviderLabel(
                         type="number"
                         name="amount"
                         min="100"
-                        max="1000000"
+                        max="100000"
                         step="0.01"
-                        placeholder="مثال: 10000"
+                        placeholder="مثال: 1000"
                         required
                     >
-
                 </div>
 
             </div>
 
             <button type="submit">
-                إنشاء الطلب التعليمي
+                إنشاء طلب الشحن
             </button>
 
         </form>
@@ -621,12 +577,12 @@ function educationProviderLabel(
 
     <div class="card">
 
-        <h2>📋 الطلبات التعليمية السابقة</h2>
+        <h2>📋 طلبات الشحن السابقة</h2>
 
         <?php if (!$requests): ?>
 
             <div class="empty">
-                لا توجد طلبات تعليمية حتى الآن.
+                لا توجد طلبات شحن حتى الآن.
             </div>
 
         <?php else: ?>
@@ -636,17 +592,15 @@ function educationProviderLabel(
                 <table>
 
                     <thead>
-
                         <tr>
-                            <th>الجهة</th>
-                            <th>رقم الطالب/الحساب</th>
+                            <th>الشركة</th>
+                            <th>الرقم</th>
                             <th>المبلغ</th>
                             <th>المرجع</th>
                             <th>الحالة</th>
                             <th>الرسالة</th>
                             <th>التاريخ</th>
                         </tr>
-
                     </thead>
 
                     <tbody>
@@ -669,23 +623,14 @@ function educationProviderLabel(
                         <tr>
 
                             <td>
-                                <?= e(
-                                    educationProviderLabel(
-                                        (string) $request['provider'],
-                                        $providers
-                                    )
-                                ) ?>
+                                <?= e($request['provider']) ?>
                             </td>
 
                             <td>
-                                <?= e(
-                                    $request['account_number']
-                                    ?? ''
-                                ) ?>
+                                <?= e($request['phone_number']) ?>
                             </td>
 
                             <td>
-
                                 <strong>
                                     <?= e(
                                         formatMoney(
@@ -693,17 +638,9 @@ function educationProviderLabel(
                                         )
                                     ) ?>
                                 </strong>
-
                                 SDG
 
-                                <?php if (
-                                    bccomp(
-                                        (string) $request['fee'],
-                                        '0.00',
-                                        2
-                                    ) > 0
-                                ): ?>
-
+                                <?php if (bccomp((string) $request['fee'], '0.00', 2) > 0): ?>
                                     <div class="muted">
                                         الرسوم:
                                         <?= e(
@@ -712,65 +649,41 @@ function educationProviderLabel(
                                             )
                                         ) ?>
                                     </div>
-
                                 <?php endif; ?>
-
                             </td>
 
                             <td>
-
                                 <div class="reference">
-                                    <?= e(
-                                        $request['reference']
-                                    ) ?>
+                                    <?= e($request['reference']) ?>
                                 </div>
-
                             </td>
 
                             <td>
-
                                 <span
                                     class="status <?= e(
                                         $requestStatusClass
                                     ) ?>"
                                 >
-                                    <?= e(
-                                        $requestStatusLabel
-                                    ) ?>
+                                    <?= e($requestStatusLabel) ?>
                                 </span>
-
                             </td>
 
                             <td>
-
-                                <?php if (
-                                    !empty(
-                                        $request['response_message']
-                                    )
-                                ): ?>
-
+                                <?php if (!empty($request['response_message'])): ?>
                                     <?= nl2br(
                                         e(
-                                            $request[
-                                                'response_message'
-                                            ]
+                                            $request['response_message']
                                         )
                                     ) ?>
-
                                 <?php else: ?>
-
                                     <span class="muted">
                                         لا توجد رسالة.
                                     </span>
-
                                 <?php endif; ?>
-
                             </td>
 
                             <td>
-                                <?= e(
-                                    $request['created_at']
-                                ) ?>
+                                <?= e($request['created_at']) ?>
                             </td>
 
                         </tr>
@@ -790,5 +703,4 @@ function educationProviderLabel(
 </div>
 
 </body>
-
 </html>

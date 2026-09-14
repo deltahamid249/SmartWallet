@@ -25,7 +25,7 @@ $stmt = $pdo->query("SELECT COUNT(*) FROM wallets");
 $stats['wallets'] = (int) $stmt->fetchColumn();
 
 $stmt = $pdo->query("SELECT COALESCE(SUM(balance), 0) FROM wallets");
-$stats['balances'] = (string) $stmt->fetchColumn();
+$stats['balances'] = (float) $stmt->fetchColumn();
 
 $stmt = $pdo->query("SELECT COUNT(*) FROM withdrawal_requests WHERE status = 'pending'");
 $stats['pending_withdrawals'] = (int) $stmt->fetchColumn();

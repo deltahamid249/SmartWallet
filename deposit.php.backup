@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'demo_
 
     $amount = normalizeAmount($_POST['amount'] ?? null);
 
-    if ($amount === null || bccomp($amount, '0.00', 2) <= 0) {
+    if ($amount === null || (float) $amount <= 0) {
         flash('error', 'أدخل مبلغًا تجريبيًا صحيحًا.');
         header('Location: /deposit.php');
         exit;
@@ -132,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'depos
     $bankReference = trim((string) ($_POST['bank_reference'] ?? ''));
     $note = cleanNote($_POST['note'] ?? null);
 
-    if ($amount === null || bccomp($amount, '0.00', 2) <= 0) {
+    if ($amount === null || (float) $amount <= 0) {
         flash('error', 'أدخل مبلغًا صحيحًا.');
         header('Location: /deposit.php');
         exit;

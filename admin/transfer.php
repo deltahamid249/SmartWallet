@@ -307,7 +307,7 @@ function transferStatusClass(string $status): string
         <h2>عملية التحويل رقم #<?= (int) $transfer['id'] ?></h2>
 
         <div class="amount">
-            <?= number_format((float) $transfer['amount'], 2) ?> SDG
+            <?= formatMoney($transfer['amount']) ?> SDG
         </div>
 
         <div class="reference">
@@ -403,7 +403,7 @@ function transferStatusClass(string $status): string
         <div class="row">
             <span class="label">المبلغ</span>
             <span class="value">
-                <?= number_format((float) $transfer['amount'], 2) ?> SDG
+                <?= formatMoney($transfer['amount']) ?> SDG
             </span>
         </div>
 

@@ -353,7 +353,7 @@ function transactionClass(string $type): string
 
 function money(float|int|string $amount): string
 {
-    return number_format((float) $amount, 2) . ' SDG';
+    return formatMoney($amount) . ' SDG';
 }
 
 function dateLabel(?string $date): string

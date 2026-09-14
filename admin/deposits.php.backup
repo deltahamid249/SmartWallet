@@ -115,9 +115,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new RuntimeException('محفظة المستخدم غير موجودة.');
         }
 
-        $amount = (string) $request['amount'];
+        $amount = (float) $request['amount'];
 
-        if (bccomp($amount, '0.00', 2) <= 0) {
+        if ($amount <= 0) {
             throw new RuntimeException('مبلغ الإيداع غير صالح.');
         }
 
@@ -630,7 +630,7 @@ function depositStatusLabel(string $status): string
 
                         <td>
                             <strong>
-                                <?= formatMoney($item['amount']) ?>
+                                <?= number_format((float) $item['amount'], 2) ?>
                                 SDG
                             </strong>
                         </td>

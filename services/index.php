@@ -29,7 +29,7 @@ if (!$user) {
 }
 
 $fullName = (string) $user['full_name'];
-$balance = (float) $user['balance'];
+$balance = (string) $user['balance'];
 $currency = 'SDG';
 
 $services = [

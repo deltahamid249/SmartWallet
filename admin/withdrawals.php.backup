@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (!consumeActionToken(
-            'deposit_review',
+            'withdrawal_review',
             $_POST['action_token'] ?? null
         )) {
             throw new RuntimeException('رمز العملية غير صالح أو انتهت صلاحيته. أعد تحميل الصفحة.');
@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $reviewNote = trim((string) ($_POST['review_note'] ?? ''));
 
         if ($requestId <= 0) {
-            throw new RuntimeException('طلب الإيداع غير صالح.');
+            throw new RuntimeException('طلب السحب غير صالح.');
         }
 
         if (!in_array($action, ['approve', 'reject'], true)) {
@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $stmt = $pdo->prepare("
             SELECT *
-            FROM deposit_requests
+            FROM withdrawal_requests
             WHERE id = :id
             FOR UPDATE
         ");
@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $request = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$request) {
-            throw new RuntimeException('طلب الإيداع غير موجود.');
+            throw new RuntimeException('طلب السحب غير موجود.');
         }
 
         if ($request['status'] !== 'pending') {
@@ -63,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($action === 'reject') {
             $stmt = $pdo->prepare("
-                UPDATE deposit_requests
+                UPDATE withdrawal_requests
                 SET
                     status = 'rejected',
                     reviewed_by = :reviewed_by,
@@ -80,21 +80,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
 
             if ($stmt->rowCount() !== 1) {
-                throw new RuntimeException('تعذر رفض طلب الإيداع.');
+                throw new RuntimeException('تعذر رفض طلب السحب.');
             }
 
             logAdminAction(
-                'reject_deposit',
-                'تم رفض طلب إيداع رقم ' . $requestId . '.',
-                'deposit',
+                'reject_withdrawal',
+                'تم رفض طلب سحب رقم ' . $requestId . '.',
+                'withdrawal',
                 $requestId
             );
 
             $pdo->commit();
 
-            flash('success', 'تم رفض طلب الإيداع بنجاح.');
-
-            header('Location: deposits.php?status=pending');
+            flash('success', 'تم رفض طلب السحب بنجاح.');
+            header('Location: withdrawals.php?status=pending');
             exit;
         }
 
@@ -115,29 +114,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new RuntimeException('محفظة المستخدم غير موجودة.');
         }
 
-        $amount = (string) $request['amount'];
+        $amount = (float) $request['amount'];
+        $balance = (float) $wallet['balance'];
 
-        if (bccomp($amount, '0.00', 2) <= 0) {
-            throw new RuntimeException('مبلغ الإيداع غير صالح.');
+        if ($amount <= 0) {
+            throw new RuntimeException('مبلغ السحب غير صالح.');
+        }
+
+        if ($balance < $amount) {
+            throw new RuntimeException(
+                'الرصيد الحالي غير كافٍ لاعتماد طلب السحب.'
+            );
         }
 
         $stmt = $pdo->prepare("
             UPDATE wallets
-            SET balance = balance + :amount
+            SET balance = balance - :amount
             WHERE id = :wallet_id
+              AND balance >= :amount_check
         ");
 
         $stmt->execute([
             ':amount' => $amount,
-            ':wallet_id' => $request['wallet_id']
+            ':wallet_id' => $request['wallet_id'],
+            ':amount_check' => $amount
         ]);
 
         if ($stmt->rowCount() !== 1) {
-            throw new RuntimeException('تعذر إضافة المبلغ إلى المحفظة.');
+            throw new RuntimeException('تعذر خصم المبلغ من المحفظة.');
         }
 
         $transactionReference =
-            'DEP-' . strtoupper(bin2hex(random_bytes(6)));
+            'WDR-' . strtoupper(bin2hex(random_bytes(6)));
 
         $stmt = $pdo->prepare("
             INSERT INTO transactions
@@ -152,7 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             VALUES
             (
                 :wallet_id,
-                'deposit',
+                'withdraw',
                 :amount,
                 :reference,
                 :description,
@@ -164,11 +172,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':wallet_id' => $request['wallet_id'],
             ':amount' => $amount,
             ':reference' => $transactionReference,
-            ':description' => 'اعتماد طلب إيداع ' . ($request['reference'] ?? ('#' . $request['id']))
+            ':description' => 'اعتماد طلب سحب ' . $request['reference']
         ]);
 
         $stmt = $pdo->prepare("
-            UPDATE deposit_requests
+            UPDATE withdrawal_requests
             SET
                 status = 'approved',
                 reviewed_by = :reviewed_by,
@@ -185,13 +193,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
 
         if ($stmt->rowCount() !== 1) {
-            throw new RuntimeException('تعذر تحديث حالة طلب الإيداع.');
+            throw new RuntimeException('تعذر تحديث حالة طلب السحب.');
         }
 
         logAdminAction(
-            'approve_deposit',
-            'تم اعتماد طلب إيداع رقم ' . $requestId . ' وإضافة المبلغ إلى المحفظة.',
-            'deposit',
+            'approve_withdrawal',
+            'تم اعتماد طلب سحب رقم ' . $requestId . ' وخصم المبلغ من المحفظة.',
+            'withdrawal',
             $requestId
         );
 
@@ -199,10 +207,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         flash(
             'success',
-            'تم اعتماد طلب الإيداع وإضافة المبلغ إلى المحفظة بنجاح.'
+            'تم اعتماد طلب السحب وخصم المبلغ من المحفظة بنجاح.'
         );
 
-        header('Location: deposits.php?status=pending');
+        header('Location: withdrawals.php?status=pending');
         exit;
 
     } catch (Throwable $e) {
@@ -212,7 +220,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         flash('error', $e->getMessage());
 
-        header('Location: deposits.php?status=pending');
+        header('Location: withdrawals.php?status=pending');
         exit;
     }
 }
@@ -235,25 +243,25 @@ $where = '';
 $params = [];
 
 if ($status !== 'all') {
-    $where = 'WHERE dr.status = :status';
+    $where = 'WHERE wr.status = :status';
     $params[':status'] = $status;
 }
 
 $stmt = $pdo->prepare("
     SELECT
-        dr.*,
+        wr.*,
         u.full_name,
         u.phone
-    FROM deposit_requests dr
+    FROM withdrawal_requests wr
     INNER JOIN users u
-        ON u.id = dr.user_id
+        ON u.id = wr.user_id
     $where
-    ORDER BY dr.id DESC
+    ORDER BY wr.id DESC
 ");
 
 $stmt->execute($params);
 
-$deposits = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$withdrawals = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $statsStmt = $pdo->query("
     SELECT
@@ -261,7 +269,7 @@ $statsStmt = $pdo->query("
         SUM(status = 'pending') AS pending,
         SUM(status = 'approved') AS approved,
         SUM(status = 'rejected') AS rejected
-    FROM deposit_requests
+    FROM withdrawal_requests
 ");
 
 $stats = $statsStmt->fetch(PDO::FETCH_ASSOC) ?: [];
@@ -269,10 +277,10 @@ $stats = $statsStmt->fetch(PDO::FETCH_ASSOC) ?: [];
 $flashSuccess = flash('success');
 $flashError = flash('error');
 
-$reviewToken = actionToken('deposit_review');
+$reviewToken = actionToken('withdrawal_review');
 $csrfToken = csrfToken();
 
-function depositStatusLabel(string $status): string
+function statusLabel(string $status): string
 {
     return match ($status) {
         'pending' => 'قيد المراجعة',
@@ -288,8 +296,7 @@ function depositStatusLabel(string $status): string
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>إدارة طلبات الإيداع</title>
+    <title>إدارة طلبات السحب</title>
 
     <style>
         * {
@@ -407,7 +414,7 @@ function depositStatusLabel(string $status): string
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 1000px;
+            min-width: 900px;
         }
 
         th,
@@ -490,14 +497,6 @@ function depositStatusLabel(string $status): string
             color: #64748b;
         }
 
-        .proof-link {
-            display: inline-block;
-            margin-top: 6px;
-            color: #2563eb;
-            text-decoration: none;
-            font-weight: bold;
-        }
-
         @media (max-width: 700px) {
             .stats {
                 grid-template-columns: repeat(2, 1fr);
@@ -516,7 +515,7 @@ function depositStatusLabel(string $status): string
 <div class="container">
 
     <div class="topbar">
-        <h1>إدارة طلبات الإيداع</h1>
+        <h1>إدارة طلبات السحب</h1>
 
         <div class="links">
             <a href="index.php">لوحة الإدارة</a>
@@ -537,7 +536,6 @@ function depositStatusLabel(string $status): string
     <?php endif; ?>
 
     <div class="stats">
-
         <div class="stat">
             <span>إجمالي الطلبات</span>
             <strong><?= (int) ($stats['total'] ?? 0) ?></strong>
@@ -557,43 +555,36 @@ function depositStatusLabel(string $status): string
             <span>المرفوضة</span>
             <strong><?= (int) ($stats['rejected'] ?? 0) ?></strong>
         </div>
-
     </div>
 
     <div class="filters">
-
         <?php foreach ($allowedStatuses as $filter): ?>
-
             <a
                 href="?status=<?= urlencode($filter) ?>"
                 class="<?= $status === $filter ? 'active' : '' ?>"
             >
-                <?= e(depositStatusLabel($filter)) ?>
+                <?= e(statusLabel($filter)) ?>
             </a>
-
         <?php endforeach; ?>
-
     </div>
 
     <div class="table-wrap">
 
-        <?php if (!$deposits): ?>
+        <?php if (!$withdrawals): ?>
 
             <div class="empty">
-                لا توجد طلبات إيداع في هذه القائمة.
+                لا توجد طلبات سحب في هذه القائمة.
             </div>
 
         <?php else: ?>
 
             <table>
-
                 <thead>
                     <tr>
                         <th>الطلب</th>
                         <th>المستخدم</th>
                         <th>المبلغ</th>
-                        <th>البنك</th>
-                        <th>المرجع البنكي</th>
+                        <th>بيانات المستلم</th>
                         <th>الحالة</th>
                         <th>التاريخ</th>
                         <th>الإجراء</th>
@@ -602,7 +593,7 @@ function depositStatusLabel(string $status): string
 
                 <tbody>
 
-                <?php foreach ($deposits as $item): ?>
+                <?php foreach ($withdrawals as $item): ?>
 
                     <tr>
 
@@ -610,9 +601,7 @@ function depositStatusLabel(string $status): string
                             <strong>
                                 <?= e($item['reference'] ?? ('#' . $item['id'])) ?>
                             </strong>
-
                             <br>
-
                             <small>
                                 ID: <?= (int) $item['id'] ?>
                             </small>
@@ -620,9 +609,7 @@ function depositStatusLabel(string $status): string
 
                         <td>
                             <?= e($item['full_name']) ?>
-
                             <br>
-
                             <small>
                                 <?= e($item['phone']) ?>
                             </small>
@@ -630,41 +617,22 @@ function depositStatusLabel(string $status): string
 
                         <td>
                             <strong>
-                                <?= formatMoney($item['amount']) ?>
+                                <?= number_format((float) $item['amount'], 2) ?>
                                 SDG
                             </strong>
                         </td>
 
                         <td>
-                            <?= e($item['bank_name']) ?>
-
-                            <?php if (!empty($item['sender_name'])): ?>
-                                <br>
-                                <small>
-                                    المرسل:
-                                    <?= e($item['sender_name']) ?>
-                                </small>
-                            <?php endif; ?>
-
-                            <?php if (!empty($item['proof_file'])): ?>
-                                <br>
-                                <a
-                                    class="proof-link"
-                                    href="../<?= e(ltrim($item['proof_file'], '/')) ?>"
-                                    target="_blank"
-                                >
-                                    عرض إثبات الدفع
-                                </a>
-                            <?php endif; ?>
-                        </td>
-
-                        <td>
-                            <?= e($item['bank_reference']) ?>
+                            <?= e($item['recipient_name']) ?>
+                            <br>
+                            <small>
+                                <?= e($item['recipient_phone']) ?>
+                            </small>
                         </td>
 
                         <td>
                             <span class="status <?= e($item['status']) ?>">
-                                <?= e(depositStatusLabel($item['status'])) ?>
+                                <?= e(statusLabel($item['status'])) ?>
                             </span>
                         </td>
 
@@ -710,7 +678,7 @@ function depositStatusLabel(string $status): string
                                             type="submit"
                                             name="action"
                                             value="approve"
-                                            onclick="return confirm('هل أنت متأكد من اعتماد الإيداع وإضافة المبلغ إلى المحفظة؟');"
+                                            onclick="return confirm('هل أنت متأكد من اعتماد طلب السحب وخصم المبلغ من المحفظة؟');"
                                         >
                                             اعتماد
                                         </button>
@@ -720,7 +688,7 @@ function depositStatusLabel(string $status): string
                                             type="submit"
                                             name="action"
                                             value="reject"
-                                            onclick="return confirm('هل أنت متأكد من رفض طلب الإيداع؟');"
+                                            onclick="return confirm('هل أنت متأكد من رفض طلب السحب؟');"
                                         >
                                             رفض
                                         </button>
@@ -736,13 +704,10 @@ function depositStatusLabel(string $status): string
                                 </small>
 
                                 <?php if (!empty($item['review_note'])): ?>
-
                                     <br>
-
                                     <small>
                                         <?= e($item['review_note']) ?>
                                     </small>
-
                                 <?php endif; ?>
 
                             <?php endif; ?>
@@ -754,7 +719,6 @@ function depositStatusLabel(string $status): string
                 <?php endforeach; ?>
 
                 </tbody>
-
             </table>
 
         <?php endif; ?>

@@ -1,13 +1,13 @@
 <?php
-declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../config/database.php';
 
 requireAdmin();
 
-$search = trim((string) ($_GET['search'] ?? ''));
-$status = trim((string) ($_GET['status'] ?? 'all'));
-$serviceType = trim((string) ($_GET['service_type'] ?? 'all'));
+$status = $_GET['status'] ?? 'all';
+$serviceType = $_GET['service_type'] ?? 'all';
 
 $allowedStatuses = [
     'all',
@@ -21,6 +21,11 @@ $allowedStatuses = [
 $allowedServiceTypes = [
     'all',
     'mobile_recharge',
+    'electricity',
+    'internet',
+    'bill_payment',
+    'education',
+    'government',
 ];
 
 if (!in_array($status, $allowedStatuses, true)) {
@@ -34,28 +39,14 @@ if (!in_array($serviceType, $allowedServiceTypes, true)) {
 $where = [];
 $params = [];
 
-if ($search !== '') {
-    $where[] = "
-        (
-            sr.reference LIKE :search
-            OR sr.provider LIKE :search
-            OR sr.phone_number LIKE :search
-            OR u.full_name LIKE :search
-            OR u.phone LIKE :search
-        )
-    ";
-
-    $params[':search'] = '%' . $search . '%';
-}
-
 if ($status !== 'all') {
-    $where[] = "sr.status = :status";
-    $params[':status'] = $status;
+    $where[] = 'sr.status = :status';
+    $params['status'] = $status;
 }
 
 if ($serviceType !== 'all') {
-    $where[] = "sr.service_type = :service_type";
-    $params[':service_type'] = $serviceType;
+    $where[] = 'sr.service_type = :service_type';
+    $params['service_type'] = $serviceType;
 }
 
 $whereSql = $where
@@ -77,170 +68,137 @@ $stmt = $pdo->prepare("
         sr.status,
         sr.response_message,
         sr.created_at,
-        u.full_name,
-        u.phone AS user_phone,
-        u.email
+        sr.updated_at,
+        u.full_name AS user_name,
+        u.phone AS user_phone
     FROM service_requests sr
     INNER JOIN users u ON u.id = sr.user_id
-    $whereSql
+    {$whereSql}
     ORDER BY sr.id DESC
-    LIMIT 100
+    LIMIT 200
 ");
 
 $stmt->execute($params);
-
 $requests = $stmt->fetchAll();
 
-$statsStmt = $pdo->query("
-    SELECT
-        COUNT(*) AS total,
-        SUM(status = 'pending') AS pending,
-        SUM(status = 'processing') AS processing,
-        SUM(status = 'completed') AS completed,
-        SUM(status = 'failed') AS failed,
-        SUM(status = 'cancelled') AS cancelled,
-        COALESCE(SUM(CASE
-            WHEN status IN ('pending', 'processing', 'completed')
-            THEN total_amount
-            ELSE 0
-        END), 0) AS total_amount
-    FROM service_requests
-");
-
-$stats = $statsStmt->fetch();
+$serviceLabels = [
+    'mobile_recharge' => 'شحن رصيد',
+    'electricity' => 'الكهرباء',
+    'internet' => 'الإنترنت',
+    'bill_payment' => 'دفع الفواتير',
+    'education' => 'الخدمات التعليمية',
+    'government' => 'الخدمات الحكومية',
+];
 
 $statusLabels = [
     'pending' => 'قيد الانتظار',
-    'processing' => 'جاري المعالجة',
+    'processing' => 'قيد المعالجة',
     'completed' => 'مكتمل',
     'failed' => 'فشل',
     'cancelled' => 'ملغي',
 ];
 
 $statusClasses = [
-    'pending' => 'pending',
-    'processing' => 'processing',
-    'completed' => 'completed',
-    'failed' => 'failed',
-    'cancelled' => 'cancelled',
+    'pending' => 'status-pending',
+    'processing' => 'status-processing',
+    'completed' => 'status-completed',
+    'failed' => 'status-failed',
+    'cancelled' => 'status-cancelled',
 ];
 
-$serviceLabels = [
-    'mobile_recharge' => 'شحن الهاتف',
+$serviceTypeLabels = [
+    'all' => 'كل الخدمات',
+    'mobile_recharge' => 'شحن الرصيد',
+    'electricity' => 'الكهرباء',
+    'internet' => 'الإنترنت',
+    'bill_payment' => 'دفع الفواتير',
+    'education' => 'التعليم',
+    'government' => 'الحكومة',
 ];
 
 ?>
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>إدارة الخدمات - لوحة الإدارة</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة الخدمات - المحفظة الذكية</title>
 
     <style>
-
         * {
             box-sizing: border-box;
         }
 
         body {
             margin: 0;
-            font-family: Arial, Tahoma, sans-serif;
+            font-family: Tahoma, Arial, sans-serif;
             background: #f5f7fb;
             color: #111827;
         }
 
         .container {
-            width: min(100% - 24px, 1200px);
-            margin: 20px auto 40px;
-        }
-
-        .header,
-        .stats,
-        .filters,
-        .table-card {
-            background: #ffffff;
-            border-radius: 18px;
-            box-shadow: 0 5px 18px rgba(0, 0, 0, .06);
+            width: min(1200px, calc(100% - 24px));
+            margin: 25px auto;
         }
 
         .header {
+            background: #ffffff;
+            border-radius: 18px;
             padding: 22px;
             margin-bottom: 18px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
         }
 
-        .header-row {
+        .header h1 {
+            margin: 0 0 8px;
+            font-size: 24px;
+        }
+
+        .header p {
+            margin: 0;
+            color: #6b7280;
+        }
+
+        .actions {
+            margin-top: 18px;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 15px;
+            gap: 10px;
             flex-wrap: wrap;
         }
 
-        h1 {
-            margin: 0;
-            font-size: 26px;
-        }
-
-        .subtitle {
-            margin-top: 8px;
-            color: #6b7280;
-            line-height: 1.7;
-        }
-
-        .back {
+        .btn {
             display: inline-block;
+            padding: 11px 16px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 700;
+            border: 0;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: #ffffff;
+        }
+
+        .btn-secondary {
             background: #e5e7eb;
             color: #111827;
-            text-decoration: none;
-            padding: 10px 15px;
-            border-radius: 10px;
-            font-weight: bold;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 12px;
-            padding: 15px;
-            margin-bottom: 18px;
-        }
-
-        .stat {
-            background: #f8fafc;
-            border-radius: 13px;
-            padding: 15px;
-            text-align: center;
-        }
-
-        .stat-title {
-            color: #6b7280;
-            font-size: 13px;
-            margin-bottom: 7px;
-        }
-
-        .stat-value {
-            font-size: 22px;
-            font-weight: 900;
         }
 
         .filters {
+            background: #ffffff;
+            border-radius: 18px;
             padding: 18px;
             margin-bottom: 18px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
         }
 
-        .filter-form {
+        .filters form {
             display: grid;
-            grid-template-columns: 2fr 1fr 1fr auto;
-            gap: 10px;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 12px;
             align-items: end;
         }
 
@@ -248,48 +206,23 @@ $serviceLabels = [
             display: block;
             margin-bottom: 7px;
             font-size: 13px;
-            font-weight: bold;
+            font-weight: 700;
         }
 
-        input,
         select {
             width: 100%;
             padding: 12px;
-            border: 1px solid #d8dee8;
+            border: 1px solid #d1d5db;
             border-radius: 10px;
             background: #ffffff;
-            font-size: 15px;
-            outline: none;
-        }
-
-        input:focus,
-        select:focus {
-            border-color: #2563eb;
-        }
-
-        .btn {
-            display: inline-block;
-            border: 0;
-            border-radius: 10px;
-            padding: 12px 17px;
-            text-decoration: none;
-            font-weight: bold;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-
-        .btn-primary {
-            background: #2563eb;
-            color: white;
-        }
-
-        .btn-light {
-            background: #e5e7eb;
-            color: #111827;
+            font-size: 14px;
         }
 
         .table-card {
+            background: #ffffff;
+            border-radius: 18px;
             padding: 18px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
             overflow-x: auto;
         }
 
@@ -302,87 +235,77 @@ $serviceLabels = [
         th,
         td {
             padding: 13px 10px;
-            border-bottom: 1px solid #edf0f4;
+            border-bottom: 1px solid #e5e7eb;
             text-align: right;
-            vertical-align: top;
+            vertical-align: middle;
         }
 
         th {
-            background: #f8fafc;
+            background: #f9fafb;
             font-size: 13px;
-            white-space: nowrap;
         }
 
         td {
-            font-size: 14px;
+            font-size: 13px;
+        }
+
+        .service-name {
+            font-weight: 800;
         }
 
         .user-name {
-            font-weight: 900;
-        }
-
-        .muted {
-            color: #6b7280;
-            font-size: 12px;
-            margin-top: 4px;
-            line-height: 1.6;
-        }
-
-        .amount {
-            font-weight: 900;
-            white-space: nowrap;
+            font-weight: 700;
         }
 
         .reference {
             font-family: monospace;
             direction: ltr;
             text-align: right;
-            font-size: 12px;
+        }
+
+        .amount {
+            font-weight: 800;
+            white-space: nowrap;
         }
 
         .status {
             display: inline-block;
             padding: 6px 9px;
-            border-radius: 8px;
+            border-radius: 999px;
             font-size: 12px;
-            font-weight: bold;
+            font-weight: 800;
             white-space: nowrap;
         }
 
-        .status.pending {
-            background: #fef3c7;
-            color: #92400e;
+        .status-pending {
+            background: #fff7ed;
+            color: #c2410c;
         }
 
-        .status.processing {
-            background: #dbeafe;
-            color: #1e40af;
+        .status-processing {
+            background: #eff6ff;
+            color: #1d4ed8;
         }
 
-        .status.completed {
-            background: #dcfce7;
-            color: #166534;
+        .status-completed {
+            background: #ecfdf5;
+            color: #047857;
         }
 
-        .status.failed {
-            background: #fee2e2;
-            color: #991b1b;
+        .status-failed {
+            background: #fef2f2;
+            color: #b91c1c;
         }
 
-        .status.cancelled {
-            background: #e5e7eb;
-            color: #374151;
+        .status-cancelled {
+            background: #f3f4f6;
+            color: #4b5563;
         }
 
-        .service-badge {
-            display: inline-block;
-            background: #eef2ff;
-            color: #3730a3;
-            padding: 6px 9px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: bold;
-            white-space: nowrap;
+        .view-link {
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 800;
         }
 
         .empty {
@@ -391,218 +314,99 @@ $serviceLabels = [
             color: #6b7280;
         }
 
-        .note {
-            margin-top: 5px;
-            color: #6b7280;
-            font-size: 12px;
-            line-height: 1.6;
-            max-width: 280px;
-        }
-
-        @media (max-width: 900px) {
-
-            .stats {
-                grid-template-columns: repeat(3, 1fr);
-            }
-
-            .filter-form {
-                grid-template-columns: 1fr 1fr;
-            }
-
-        }
-
-        @media (max-width: 600px) {
-
+        @media (max-width: 700px) {
             .container {
-                width: min(100% - 16px, 1200px);
-                margin-top: 10px;
+                width: min(100% - 14px, 1200px);
+                margin: 10px auto;
             }
 
-            .header,
-            .filters,
-            .table-card {
-                padding: 16px;
+            .header {
+                padding: 18px;
+                border-radius: 14px;
             }
 
-            h1 {
-                font-size: 22px;
+            .header h1 {
+                font-size: 20px;
             }
 
-            .stats {
-                grid-template-columns: repeat(2, 1fr);
+            .filters {
+                padding: 14px;
+                border-radius: 14px;
             }
 
-            .filter-form {
+            .filters form {
                 grid-template-columns: 1fr;
             }
 
+            .table-card {
+                padding: 10px;
+                border-radius: 14px;
+            }
         }
-
     </style>
-
 </head>
 
 <body>
 
 <div class="container">
 
-    <section class="header">
+    <div class="header">
+        <h1>إدارة الخدمات</h1>
+        <p>متابعة جميع طلبات الخدمات المقدمة من المستخدمين.</p>
 
-        <div class="header-row">
+        <div class="actions">
+            <a href="index.php" class="btn btn-primary">لوحة الإدارة</a>
+            <a href="service.php" class="btn btn-secondary">تفاصيل طلب خدمة</a>
+        </div>
+    </div>
+
+    <div class="filters">
+
+        <form method="get">
 
             <div>
+                <label for="service_type">نوع الخدمة</label>
 
-                <h1>🛠️ إدارة الخدمات</h1>
-
-                <div class="subtitle">
-                    متابعة طلبات الخدمات الرقمية والعمليات المرتبطة بالمستخدمين.
-                </div>
-
-            </div>
-
-            <a href="index.php" class="back">
-                ← لوحة الإدارة
-            </a>
-
-        </div>
-
-    </section>
-
-
-    <section class="stats">
-
-        <div class="stat">
-            <div class="stat-title">إجمالي الطلبات</div>
-            <div class="stat-value">
-                <?= (int) ($stats['total'] ?? 0) ?>
-            </div>
-        </div>
-
-        <div class="stat">
-            <div class="stat-title">قيد الانتظار</div>
-            <div class="stat-value">
-                <?= (int) ($stats['pending'] ?? 0) ?>
-            </div>
-        </div>
-
-        <div class="stat">
-            <div class="stat-title">جاري المعالجة</div>
-            <div class="stat-value">
-                <?= (int) ($stats['processing'] ?? 0) ?>
-            </div>
-        </div>
-
-        <div class="stat">
-            <div class="stat-title">مكتملة</div>
-            <div class="stat-value">
-                <?= (int) ($stats['completed'] ?? 0) ?>
-            </div>
-        </div>
-
-        <div class="stat">
-            <div class="stat-title">إجمالي المبالغ</div>
-            <div class="stat-value">
-                <?= e(formatMoney((float) ($stats['total_amount'] ?? 0))) ?>
-                SDG
-            </div>
-        </div>
-
-    </section>
-
-
-    <section class="filters">
-
-        <form method="get" class="filter-form">
-
-            <div>
-
-                <label for="search">
-                    بحث
-                </label>
-
-                <input
-                    type="search"
-                    id="search"
-                    name="search"
-                    value="<?= e($search) ?>"
-                    placeholder="المرجع، اسم المستخدم، الهاتف..."
-                >
-
-            </div>
-
-
-            <div>
-
-                <label for="status">
-                    الحالة
-                </label>
-
-                <select id="status" name="status">
-
-                    <option value="all" <?= $status === 'all' ? 'selected' : '' ?>>
-                        جميع الحالات
-                    </option>
-
-                    <?php foreach ($statusLabels as $key => $label): ?>
-
+                <select name="service_type" id="service_type">
+                    <?php foreach ($serviceTypeLabels as $value => $label): ?>
                         <option
-                            value="<?= e($key) ?>"
-                            <?= $status === $key ? 'selected' : '' ?>
+                            value="<?= e($value) ?>"
+                            <?= $serviceType === $value ? 'selected' : '' ?>
                         >
                             <?= e($label) ?>
                         </option>
-
                     <?php endforeach; ?>
-
                 </select>
-
             </div>
-
 
             <div>
+                <label for="status">حالة الطلب</label>
 
-                <label for="service_type">
-                    نوع الخدمة
-                </label>
-
-                <select id="service_type" name="service_type">
-
-                    <option
-                        value="all"
-                        <?= $serviceType === 'all' ? 'selected' : '' ?>
-                    >
-                        جميع الخدمات
+                <select name="status" id="status">
+                    <option value="all" <?= $status === 'all' ? 'selected' : '' ?>>
+                        كل الحالات
                     </option>
 
-                    <option
-                        value="mobile_recharge"
-                        <?= $serviceType === 'mobile_recharge' ? 'selected' : '' ?>
-                    >
-                        شحن الهاتف
-                    </option>
-
+                    <?php foreach ($statusLabels as $value => $label): ?>
+                        <option
+                            value="<?= e($value) ?>"
+                            <?= $status === $value ? 'selected' : '' ?>
+                        >
+                            <?= e($label) ?>
+                        </option>
+                    <?php endforeach; ?>
                 </select>
-
             </div>
 
-
-            <div>
-
-                <button
-                    type="submit"
-                    class="btn btn-primary"
-                >
-                    🔎 بحث
-                </button>
-
-            </div>
+            <button type="submit" class="btn btn-primary">
+                تطبيق الفلتر
+            </button>
 
         </form>
 
-    </section>
+    </div>
 
-
-    <section class="table-card">
+    <div class="table-card">
 
         <?php if (!$requests): ?>
 
@@ -615,23 +419,37 @@ $serviceLabels = [
             <table>
 
                 <thead>
-
                 <tr>
                     <th>#</th>
-                    <th>الخدمة</th>
                     <th>المستخدم</th>
-                    <th>التفاصيل</th>
+                    <th>الخدمة</th>
+                    <th>المزود</th>
                     <th>المبلغ</th>
+                    <th>الإجمالي</th>
                     <th>المرجع</th>
                     <th>الحالة</th>
                     <th>التاريخ</th>
+                    <th>الإجراء</th>
                 </tr>
-
                 </thead>
 
                 <tbody>
 
                 <?php foreach ($requests as $request): ?>
+
+                    <?php
+                    $serviceName =
+                        $serviceLabels[$request['service_type']]
+                        ?? $request['service_type'];
+
+                    $statusLabel =
+                        $statusLabels[$request['status']]
+                        ?? $request['status'];
+
+                    $statusClass =
+                        $statusClasses[$request['status']]
+                        ?? '';
+                    ?>
 
                     <tr>
 
@@ -639,141 +457,57 @@ $serviceLabels = [
                             <?= (int) $request['id'] ?>
                         </td>
 
-
                         <td>
-
-                            <span class="service-badge">
-                                <?= e(
-                                    $serviceLabels[$request['service_type']]
-                                    ?? $request['service_type']
-                                ) ?>
-                            </span>
-
-                            <?php if (!empty($request['provider'])): ?>
-
-                                <div class="muted">
-                                    <?= e($request['provider']) ?>
-                                </div>
-
-                            <?php endif; ?>
-
-                        </td>
-
-
-                        <td>
-
                             <div class="user-name">
-                                <?= e($request['full_name']) ?>
+                                <?= e($request['user_name']) ?>
                             </div>
 
-                            <div class="muted">
-                                <?= e($request['user_phone']) ?>
-                            </div>
-
-                            <?php if (!empty($request['email'])): ?>
-
-                                <div class="muted">
-                                    <?= e($request['email']) ?>
-                                </div>
-
+                            <?php if (!empty($request['user_phone'])): ?>
+                                <small>
+                                    <?= e($request['user_phone']) ?>
+                                </small>
                             <?php endif; ?>
-
                         </td>
 
-
                         <td>
-
-                            <?php if (!empty($request['phone_number'])): ?>
-
-                                <div>
-                                    📱 <?= e($request['phone_number']) ?>
-                                </div>
-
-                            <?php endif; ?>
-
-
-                            <?php if (!empty($request['account_number'])): ?>
-
-                                <div class="muted">
-                                    رقم الحساب:
-                                    <?= e($request['account_number']) ?>
-                                </div>
-
-                            <?php endif; ?>
-
-
-                            <?php if (!empty($request['response_message'])): ?>
-
-                                <div class="note">
-                                    <?= e($request['response_message']) ?>
-                                </div>
-
-                            <?php endif; ?>
-
+                            <div class="service-name">
+                                <?= e($serviceName) ?>
+                            </div>
                         </td>
 
-
                         <td>
-
-                            <div class="amount">
-                                <?= e(formatMoney((float) $request['total_amount'])) ?>
-                                SDG
-                            </div>
-
-                            <div class="muted">
-                                المبلغ:
-                                <?= e(formatMoney((float) $request['amount'])) ?>
-                                SDG
-                            </div>
-
-                            <div class="muted">
-                                الرسوم:
-                                <?= e(formatMoney((float) $request['fee'])) ?>
-                                SDG
-                            </div>
-
+                            <?= e($request['provider'] ?? '—') ?>
                         </td>
 
-
-                        <td>
-
-                            <div class="reference">
-                                <?= e($request['reference']) ?>
-                            </div>
-
+                        <td class="amount">
+                            <?= e(formatMoney($request['amount'])) ?>
                         </td>
 
+                        <td class="amount">
+                            <?= e(formatMoney($request['total_amount'])) ?>
+                        </td>
+
+                        <td class="reference">
+                            <?= e($request['reference']) ?>
+                        </td>
 
                         <td>
-
-                            <span class="status <?= e(
-                                $statusClasses[$request['status']]
-                                ?? 'pending'
-                            ) ?>">
-                                <?= e(
-                                    $statusLabels[$request['status']]
-                                    ?? $request['status']
-                                ) ?>
+                            <span class="status <?= e($statusClass) ?>">
+                                <?= e($statusLabel) ?>
                             </span>
-
                         </td>
 
+                        <td>
+                            <?= e($request['created_at']) ?>
+                        </td>
 
                         <td>
-
-                            <div>
-                                <?= e($request['created_at']) ?>
-                            </div>
-
-                            <div style="margin-top:8px;">
-                                <a
-                                    href="service.php?id=<?= (int) $request['id'] ?>"
-                                    class="btn btn-light"
-                                >
-                                    عرض التفاصيل
-                                </a>
-                            </div>
-
+                            <a
+                                href="service.php?id=<?= (int) $request['id'] ?>"
+                                class="view-link"
+                            >
+                                عرض
+                            </a>
                         </td>
 
                     </tr>
@@ -786,7 +520,7 @@ $serviceLabels = [
 
         <?php endif; ?>
 
-    </section>
+    </div>
 
 </div>
 

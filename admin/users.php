@@ -520,10 +520,7 @@ function userRoleLabel(string $role): string
 
                         <td class="balance">
 
-                            <?= number_format(
-                                (float) $user['balance'],
-                                2
-                            ) ?>
+                            <?= formatMoney($user['balance']) ?>
 
                             SDG
 

@@ -114,14 +114,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new RuntimeException('محفظة المستخدم غير موجودة.');
         }
 
-        $amount = (float) $request['amount'];
-        $balance = (float) $wallet['balance'];
+        $amount = (string) $request['amount'];
+        $balance = (string) $wallet['balance'];
 
-        if ($amount <= 0) {
+        if (bccomp($amount, '0.00', 2) <= 0) {
             throw new RuntimeException('مبلغ السحب غير صالح.');
         }
 
-        if ($balance < $amount) {
+        if (bccomp($balance, $amount, 2) < 0) {
             throw new RuntimeException(
                 'الرصيد الحالي غير كافٍ لاعتماد طلب السحب.'
             );
@@ -617,7 +617,7 @@ function statusLabel(string $status): string
 
                         <td>
                             <strong>
-                                <?= number_format((float) $item['amount'], 2) ?>
+                                <?= formatMoney($item['amount']) ?>
                                 SDG
                             </strong>
                         </td>

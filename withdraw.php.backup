@@ -49,7 +49,7 @@ if (
     $withdrawalMethod = trim((string) ($_POST['withdrawal_method'] ?? 'manual'));
     $note = cleanNote($_POST['note'] ?? null);
 
-    if ($amount === null || bccomp($amount, '0.00', 2) <= 0) {
+    if ($amount === null || (float) $amount <= 0) {
         flash('error', 'أدخل مبلغ سحب صحيح.');
         header('Location: /withdraw.php');
         exit;
@@ -106,10 +106,10 @@ if (
             throw new RuntimeException('Wallet not found');
         }
 
-        $currentBalance = (string) $lockedWallet['balance'];
-        $requestedAmount = (string) $amount;
+        $currentBalance = (float) $lockedWallet['balance'];
+        $requestedAmount = (float) $amount;
 
-        if (bccomp($requestedAmount, $currentBalance, 2) > 0) {
+        if ($requestedAmount > $currentBalance) {
             throw new RuntimeException(
                 'الرصيد غير كافٍ لتنفيذ طلب السحب.'
             );

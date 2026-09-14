@@ -97,11 +97,11 @@ $totalTransfers = (int) $pdo
     ->query("SELECT COUNT(*) FROM transfers")
     ->fetchColumn();
 
-$totalAmount = (string) $pdo
+$totalAmount = (float) $pdo
     ->query("SELECT COALESCE(SUM(amount), 0) FROM transfers")
     ->fetchColumn();
 
-$completedAmount = (string) $pdo
+$completedAmount = (float) $pdo
     ->query("
         SELECT COALESCE(SUM(amount), 0)
         FROM transfers
@@ -109,7 +109,7 @@ $completedAmount = (string) $pdo
     ")
     ->fetchColumn();
 
-$pendingAmount = (string) $pdo
+$pendingAmount = (float) $pdo
     ->query("
         SELECT COALESCE(SUM(amount), 0)
         FROM transfers
@@ -639,7 +639,7 @@ function transferStatusClass(string $status): string
                             <td class="amount">
 
                                 <?= number_format(
-                                    $transfer['amount'],
+                                    (float) $transfer['amount'],
                                     2
                                 ) ?>
 

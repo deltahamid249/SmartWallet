@@ -67,19 +67,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $amount = normalizeAmount($amountRaw);
 
-    if ($amount <= 0) {
+    if (bccomp((string) $amount, '0.00', 2) <= 0) {
         flash('error', 'أدخل مبلغًا صحيحًا.');
         header('Location: recharge.php');
         exit;
     }
 
-    if ($amount < 100) {
+    if (bccomp((string) $amount, '100.00', 2) < 0) {
         flash('error', 'الحد الأدنى للشحن هو 100 جنيه.');
         header('Location: recharge.php');
         exit;
     }
 
-    if ($amount > 100000) {
+    if (bccomp((string) $amount, '100000.00', 2) > 0) {
         flash('error', 'الحد الأقصى للشحن هو 100,000 جنيه.');
         header('Location: recharge.php');
         exit;
@@ -634,19 +634,17 @@ $csrfToken = csrfToken();
                                 <strong>
                                     <?= e(
                                         formatMoney(
-                                            (float)
                                             $request['total_amount']
                                         )
                                     ) ?>
                                 </strong>
                                 SDG
 
-                                <?php if ((float) $request['fee'] > 0): ?>
+                                <?php if (bccomp((string) $request['fee'], '0.00', 2) > 0): ?>
                                     <div class="muted">
                                         الرسوم:
                                         <?= e(
                                             formatMoney(
-                                                (float)
                                                 $request['fee']
                                             )
                                         ) ?>
