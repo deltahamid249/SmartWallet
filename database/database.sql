@@ -1,6 +1,6 @@
 -- SmartWallet final database schema
 -- Generated from the working database
--- Generated: 2026-09-14 21:55:28 UTC
+-- Generated: 2026-09-14 21:56:11 UTC
 
 CREATE DATABASE IF NOT EXISTS `smart_wallet` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE `smart_wallet`;
