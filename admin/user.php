@@ -72,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $newStatus = $targetUser['status'] === 'active'
-                ? 'inactive'
+                ? 'blocked'
                 : 'active';
 
             $stmt = $pdo->prepare("
@@ -319,7 +319,7 @@ function statusLabel(string $status): string
 {
     return match ($status) {
         'active' => 'نشط',
-        'inactive' => 'غير نشط',
+        'blocked' => 'غير نشط',
         'approved' => 'مقبول',
         'completed' => 'مكتمل',
         'pending' => 'قيد المراجعة',

@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    $fee = 0.00;
+    $fee = '0.00';
     $totalAmount = $amount;
     $reference = 'RCH-' . strtoupper(bin2hex(random_bytes(6)));
 

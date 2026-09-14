@@ -11,7 +11,7 @@ $search = trim((string) ($_GET['search'] ?? ''));
 $status = trim((string) ($_GET['status'] ?? 'all'));
 $role = trim((string) ($_GET['role'] ?? 'all'));
 
-$allowedStatuses = ['all', 'active', 'inactive'];
+$allowedStatuses = ['all', 'active', 'blocked'];
 $allowedRoles = ['all', 'user', 'admin'];
 
 if (!in_array($status, $allowedStatuses, true)) {
@@ -76,7 +76,7 @@ $statsStmt = $pdo->query("
     SELECT
         COUNT(*) AS total,
         SUM(status = 'active') AS active,
-        SUM(status = 'inactive') AS inactive,
+        SUM(status = 'blocked') AS inactive,
         SUM(role = 'admin') AS admins
     FROM users
 ");
@@ -87,7 +87,7 @@ function userStatusLabel(string $status): string
 {
     return match ($status) {
         'active' => 'نشط',
-        'inactive' => 'معطل',
+        'blocked' => 'معطل',
         default => $status
     };
 }
@@ -375,7 +375,7 @@ function userRoleLabel(string $role): string
             </span>
 
             <strong>
-                <?= (int) ($stats['inactive'] ?? 0) ?>
+                <?= (int) ($stats['blocked'] ?? 0) ?>
             </strong>
 
         </div>
@@ -415,7 +415,7 @@ function userRoleLabel(string $role): string
                     نشط
                 </option>
 
-                <option value="inactive" <?= $status === 'inactive' ? 'selected' : '' ?>>
+                <option value="blocked" <?= $status === 'blocked' ? 'selected' : '' ?>>
                     معطل
                 </option>
 
