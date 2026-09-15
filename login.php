@@ -10,6 +10,7 @@ if (isLoggedIn()) {
 }
 
 $error = '';
+$phone = '';
 $ipAddress = clientIp();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -17,8 +18,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'انتهت صلاحية النموذج. أعد تحميل الصفحة وحاول مرة أخرى.';
     }
 
-    $phone = trim($_POST['phone'] ?? '');
-    $password = $_POST['password'] ?? '';
+    $phone = trim((string)($_POST['phone'] ?? ''));
+    $password = (string)($_POST['password'] ?? '');
 
     if ($error === '' && ($phone === '' || $password === '')) {
         $error = 'يرجى إدخال رقم الهاتف وكلمة المرور.';
@@ -31,14 +32,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                    AND created_at >= (CURRENT_TIMESTAMP - INTERVAL 15 MINUTE)
                    AND (phone = :phone OR ip_address = :ip_address)'
             );
+
             $rateStmt->execute([
                 ':phone' => $phone,
                 ':ip_address' => $ipAddress,
             ]);
 
-            if ((int) $rateStmt->fetchColumn() >= 5) {
+            if ((int)$rateStmt->fetchColumn() >= 5) {
                 throw new RuntimeException(
-                    'تم تجاوز عدد المحاولات. حاول بعد 15 دقيقة.'
+                    'تم تجاوز عدد محاولات تسجيل الدخول. حاول بعد 15 دقيقة.'
                 );
             }
 
@@ -57,10 +59,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!$user || !password_verify($password, $user['password_hash'])) {
                 $error = 'رقم الهاتف أو كلمة المرور غير صحيحة.';
-            } elseif ($user['status'] !== 'active') {
+            } elseif (($user['status'] ?? '') !== 'active') {
                 $error = 'هذا الحساب غير نشط.';
             } else {
-                loginUser((int) $user['id']);
+                loginUser((int)$user['id']);
 
                 $attempt = $pdo->prepare(
                     'INSERT INTO login_attempts
@@ -70,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
 
                 $attempt->execute([
-                    ':user_id' => (int) $user['id'],
+                    ':user_id' => (int)$user['id'],
                     ':phone' => $phone,
                     ':ip_address' => $ipAddress,
                 ]);
@@ -87,17 +89,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
 
             $attempt->execute([
-                ':user_id' => $user ? (int) $user['id'] : null,
+                ':user_id' => $user ? (int)$user['id'] : null,
                 ':phone' => $phone,
                 ':ip_address' => $ipAddress,
             ]);
+
         } catch (Throwable $e) {
             error_log($e->getMessage());
-            $error = $e instanceof PDOException
-                ? 'حدث خطأ أثناء تسجيل الدخول.'
-                : ($e instanceof RuntimeException
-                ? $e->getMessage()
-                : 'حدث خطأ أثناء تسجيل الدخول.');
+
+            if ($e instanceof RuntimeException) {
+                $error = $e->getMessage();
+            } else {
+                $error = 'حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.';
+            }
         }
     }
 }
@@ -107,9 +111,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    <title>تسجيل الدخول - Smart Wallet</title>
+    <title>تسجيل الدخول - المحفظة الذكية</title>
 
     <style>
         * {
@@ -118,58 +125,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            font-family: Arial, Tahoma, sans-serif;
             background: #f4f6f8;
-            color: #222;
+            color: #111111;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
         }
 
         .container {
-            width: min(92%, 460px);
-            margin: 70px auto;
+            width: 100%;
+            max-width: 460px;
         }
 
         .card {
-            background: #fff;
+            background: #ffffff;
             padding: 30px;
-            border-radius: 16px;
+            border-radius: 18px;
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
         }
 
         h1 {
             text-align: center;
-            margin-top: 0;
+            margin: 0;
+            font-size: 26px;
+            font-weight: 900;
         }
 
         .subtitle {
             text-align: center;
-            color: #666;
-            margin-bottom: 25px;
+            color: #222222;
+            margin: 10px 0 25px;
+            font-size: 14px;
         }
 
         label {
             display: block;
             margin: 15px 0 7px;
-            font-weight: bold;
+            font-weight: 800;
+            color: #111111;
         }
 
         input {
             width: 100%;
-            padding: 13px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
+            padding: 14px;
+            border: 1px solid #d6dbe3;
+            border-radius: 9px;
             font-size: 16px;
+            color: #111111;
+            background: #ffffff;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #1565c0;
         }
 
         button {
             width: 100%;
             margin-top: 24px;
-            padding: 13px;
+            padding: 14px;
             border: 0;
-            border-radius: 8px;
+            border-radius: 9px;
             background: #1565c0;
-            color: #fff;
+            color: #ffffff;
             font-size: 17px;
+            font-weight: 800;
             cursor: pointer;
+        }
+
+        button:active {
+            transform: scale(0.99);
         }
 
         .error {
@@ -178,16 +206,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 12px;
             border-radius: 8px;
             margin-bottom: 15px;
+            font-weight: 700;
+            line-height: 1.6;
         }
 
-        .register-link {
+        .register-box {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid #e1e5ea;
             text-align: center;
-            margin-top: 22px;
         }
 
-        a {
+        .register-text {
+            margin: 0 0 12px;
+            font-size: 14px;
+            color: #111111;
+        }
+
+        .register-button {
+            display: block;
+            width: 100%;
+            padding: 13px;
+            border: 2px solid #1565c0;
+            border-radius: 9px;
+            background: #ffffff;
             color: #1565c0;
             text-decoration: none;
+            font-size: 16px;
+            font-weight: 900;
+        }
+
+        .register-button:active {
+            background: #f1f6fc;
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 14px;
+            }
+
+            .card {
+                padding: 24px 18px;
+                border-radius: 16px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
         }
     </style>
 </head>
@@ -201,7 +266,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <h1>تسجيل الدخول</h1>
 
         <div class="subtitle">
-            مرحبًا بك في Smart Wallet
+            مرحبًا بك في المحفظة الذكية
         </div>
 
         <?php if ($error !== ''): ?>
@@ -218,7 +283,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 value="<?= e(csrfToken()) ?>"
             >
 
-            <label for="phone">رقم الهاتف</label>
+            <label for="phone">
+                رقم الهاتف
+            </label>
 
             <input
                 type="tel"
@@ -226,10 +293,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 name="phone"
                 required
                 autocomplete="tel"
-                value="<?= htmlspecialchars($_POST['phone'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                inputmode="tel"
+                value="<?= htmlspecialchars(
+                    $phone,
+                    ENT_QUOTES,
+                    'UTF-8'
+                ) ?>"
+                placeholder="أدخل رقم الهاتف"
             >
 
-            <label for="password">كلمة المرور</label>
+            <label for="password">
+                كلمة المرور
+            </label>
 
             <input
                 type="password"
@@ -237,6 +312,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 name="password"
                 required
                 autocomplete="current-password"
+                placeholder="أدخل كلمة المرور"
             >
 
             <button type="submit">
@@ -245,9 +321,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         </form>
 
-        <div class="register-link">
-            ليس لديك حساب؟
-            <a href="register.php">إنشاء حساب جديد</a>
+        <div class="register-box">
+
+            <p class="register-text">
+                ليس لديك حساب؟
+            </p>
+
+            <a
+                href="register.php"
+                class="register-button"
+            >
+                إنشاء حساب جديد
+            </a>
+
         </div>
 
     </div>
