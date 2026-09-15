@@ -455,7 +455,7 @@ function withdrawalMethodLabel(string $method): string
         }
 
         .status-rejected {
-            color: #dc2626;
+            color: #16a34a;
         }
 
         .status-cancelled {
@@ -473,6 +473,32 @@ function withdrawalMethodLabel(string $method): string
             font-size: 13px;
             margin-top: -10px;
             margin-bottom: 18px;
+        }
+
+    
+        /* Unified financial amount style */
+        .amount,
+        .balance,
+        .balance-number,
+        .balance-value,
+        .balance strong,
+        .value.amount,
+        .money,
+        .money-value {
+            color: #16a34a !important;
+            font-weight: 900;
+        }
+
+        .amount,
+        .money,
+        .money-value {
+            white-space: nowrap;
+        }
+
+        .balance-card,
+        .balance,
+        .money-card {
+            max-width: 100%;
         }
 
     </style>

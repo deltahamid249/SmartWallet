@@ -40,6 +40,205 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
 
+
+        /*
+         * مدير النظام الرئيسي ثابت برقم الحساب.
+         * تغيير اسم المستخدم لا يؤثر على الحماية.
+         */
+        $protectedAdminId = SYSTEM_ADMIN_ID;
+
+        if ($userId === $protectedAdminId) {
+            if (in_array($action, ['toggle_status', 'change_role', 'delete_user'], true)) {
+                throw new RuntimeException(
+                    'حساب مدير النظام الرئيسي لا يمكن تعطيله أو حذفه أو تغيير دوره.'
+                );
+            }
+        }
+
+        /*
+         * تعديل بيانات المستخدم.
+         */
+        if ($action === 'edit_user') {
+
+            $fullName = trim((string) ($_POST['full_name'] ?? ''));
+            $username = trim((string) ($_POST['username'] ?? ''));
+            $phone = trim((string) ($_POST['phone'] ?? ''));
+            $email = trim((string) ($_POST['email'] ?? ''));
+            $password = (string) ($_POST['password'] ?? '');
+
+            if ($fullName === '' || mb_strlen($fullName) > 150) {
+                throw new RuntimeException('الاسم الكامل غير صالح.');
+            }
+
+            if ($username === '' || mb_strlen($username) > 100) {
+                throw new RuntimeException('اسم المستخدم غير صالح.');
+            }
+
+            if ($phone === '' || mb_strlen($phone) > 30) {
+                throw new RuntimeException('رقم الهاتف غير صالح.');
+            }
+
+            if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                throw new RuntimeException('البريد الإلكتروني غير صالح.');
+            }
+
+            $check = $pdo->prepare("
+                SELECT id
+                FROM users
+                WHERE (username = :username OR phone = :phone OR email = :email)
+                  AND id <> :user_id
+                LIMIT 1
+            ");
+
+            $check->execute([
+                ':username' => $username,
+                ':phone' => $phone,
+                ':email' => $email !== '' ? $email : null,
+                ':user_id' => $userId,
+            ]);
+
+            if ($check->fetch()) {
+                throw new RuntimeException(
+                    'اسم المستخدم أو رقم الهاتف أو البريد الإلكتروني مستخدم بالفعل.'
+                );
+            }
+
+            if ($password !== '') {
+                if (strlen($password) < 8) {
+                    throw new RuntimeException('كلمة المرور يجب أن تكون 8 أحرف على الأقل.');
+                }
+
+                $stmt = $pdo->prepare("
+                    UPDATE users
+                    SET full_name = :full_name,
+                        username = :username,
+                        phone = :phone,
+                        email = :email,
+                        password_hash = :password_hash
+                    WHERE id = :user_id
+                    LIMIT 1
+                ");
+
+                $stmt->execute([
+                    ':full_name' => $fullName,
+                    ':username' => $username,
+                    ':phone' => $phone,
+                    ':email' => $email !== '' ? $email : null,
+                    ':password_hash' => password_hash($password, PASSWORD_DEFAULT),
+                    ':user_id' => $userId,
+                ]);
+            } else {
+                $stmt = $pdo->prepare("
+                    UPDATE users
+                    SET full_name = :full_name,
+                        username = :username,
+                        phone = :phone,
+                        email = :email
+                    WHERE id = :user_id
+                    LIMIT 1
+                ");
+
+                $stmt->execute([
+                    ':full_name' => $fullName,
+                    ':username' => $username,
+                    ':phone' => $phone,
+                    ':email' => $email !== '' ? $email : null,
+                    ':user_id' => $userId,
+                ]);
+            }
+
+            logAdminAction(
+                'edit_user',
+                'تم تعديل بيانات المستخدم.',
+                'user',
+                $userId
+            );
+
+            flash('success', 'تم تعديل بيانات المستخدم بنجاح.');
+            header('Location: user.php?id=' . $userId);
+            exit;
+        }
+
+        /*
+         * حذف المستخدم مع بياناته التابعة.
+         */
+        if ($action === 'delete_user') {
+
+            if ($userId === $currentAdminId) {
+                throw new RuntimeException('لا يمكنك حذف حساب المدير الذي تستخدمه حاليًا.');
+            }
+
+            $stmt = $pdo->prepare("
+                SELECT id, full_name, role
+                FROM users
+                WHERE id = :user_id
+                LIMIT 1
+            ");
+
+            $stmt->execute([':user_id' => $userId]);
+            $targetUser = $stmt->fetch();
+
+            if (!$targetUser) {
+                throw new RuntimeException('المستخدم غير موجود.');
+            }
+
+            if ($targetUser['role'] === 'admin') {
+                throw new RuntimeException(
+                    'لا يمكن حذف حساب مدير من هذه الواجهة.'
+                );
+            }
+
+            $financialChecks = [
+                'transactions' => 'SELECT COUNT(*) FROM transactions t INNER JOIN wallets w ON w.id = t.wallet_id WHERE w.user_id = :user_id',
+                'transfers' => 'SELECT COUNT(*) FROM transfers t INNER JOIN wallets w ON w.id = t.sender_wallet_id WHERE w.user_id = :user_id',
+                'payments' => 'SELECT COUNT(*) FROM payments WHERE user_id = :user_id',
+                'deposit_requests' => 'SELECT COUNT(*) FROM deposit_requests WHERE user_id = :user_id',
+                'withdrawal_requests' => 'SELECT COUNT(*) FROM withdrawal_requests WHERE user_id = :user_id',
+                'service_requests' => 'SELECT COUNT(*) FROM service_requests WHERE user_id = :user_id'
+            ];
+
+            foreach ($financialChecks as $label => $sql) {
+                $check = $pdo->prepare($sql);
+                $check->execute([':user_id' => $userId]);
+
+                if ((int) $check->fetchColumn() > 0) {
+                    throw new RuntimeException(
+                        'لا يمكن حذف هذا المستخدم لأن لديه سجلًا ماليًا أو تشغيليًا. استخدم تعطيل الحساب بدلًا من الحذف.'
+                    );
+                }
+            }
+
+            $pdo->beginTransaction();
+
+            try {
+                $stmt = $pdo->prepare("
+                    DELETE FROM users
+                    WHERE id = :user_id
+                    LIMIT 1
+                ");
+
+                $stmt->execute([':user_id' => $userId]);
+
+                logAdminAction(
+                    'delete_user',
+                    'تم حذف المستخدم: ' . $targetUser['full_name'],
+                    'user',
+                    $userId
+                );
+
+                $pdo->commit();
+            } catch (Throwable $deleteError) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                throw $deleteError;
+            }
+
+            flash('success', 'تم حذف المستخدم بنجاح.');
+            header('Location: users.php');
+            exit;
+        }
+
         /*
          * منع المدير من تغيير حالة حسابه بنفسه.
          */
@@ -119,6 +318,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             /*
+             * حساب النظام الرئيسي ID=9 هو حساب الإدارة الوحيد.
+             */
+            if ($newRole === 'admin' && $userId !== SYSTEM_ADMIN_ID) {
+                throw new RuntimeException(
+                    'لا يمكن منح صلاحية المدير إلا لحساب النظام الرئيسي.'
+                );
+            }
+
+            /*
              * منع المدير الحالي من إزالة صلاحية المدير عن نفسه.
              */
             if ($userId === $currentAdminId && $newRole !== 'admin') {
@@ -195,6 +403,7 @@ $stmt = $pdo->prepare("
     SELECT
         u.id,
         u.full_name,
+        u.username,
         u.phone,
         u.email,
         u.role,
@@ -718,7 +927,7 @@ $isCurrentAdmin = (int) $user['id'] === $currentAdminId;
         }
 
         .negative {
-            color: #dc2626;
+            color: #16a34a;
             font-weight: 900;
         }
 
@@ -778,6 +987,32 @@ $isCurrentAdmin = (int) $user['id'] === $currentAdminId;
                 height: 58px;
                 font-size: 23px;
             }
+        }
+
+    
+        /* Unified financial amount style */
+        .amount,
+        .balance,
+        .balance-number,
+        .balance-value,
+        .balance strong,
+        .value.amount,
+        .money,
+        .money-value {
+            color: #16a34a !important;
+            font-weight: 900;
+        }
+
+        .amount,
+        .money,
+        .money-value {
+            white-space: nowrap;
+        }
+
+        .balance-card,
+        .balance,
+        .money-card {
+            max-width: 100%;
         }
 
     </style>

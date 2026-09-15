@@ -291,7 +291,7 @@ $csrfToken = csrfToken();
         .error {
             background: #fef2f2;
             border: 1px solid #fecaca;
-            color: #b91c1c;
+            color: #16a34a;
             border-radius: 12px;
             padding: 14px;
             margin-bottom: 18px;
@@ -413,7 +413,7 @@ $csrfToken = csrfToken();
 
         .failed {
             background: #fef2f2;
-            color: #b91c1c;
+            color: #16a34a;
         }
 
         .cancelled {
@@ -450,6 +450,32 @@ $csrfToken = csrfToken();
                 text-align: center;
             }
         }
+    
+        /* Unified financial amount style */
+        .amount,
+        .balance,
+        .balance-number,
+        .balance-value,
+        .balance strong,
+        .value.amount,
+        .money,
+        .money-value {
+            color: #16a34a !important;
+            font-weight: 900;
+        }
+
+        .amount,
+        .money,
+        .money-value {
+            white-space: nowrap;
+        }
+
+        .balance-card,
+        .balance,
+        .money-card {
+            max-width: 100%;
+        }
+
     </style>
 </head>
 

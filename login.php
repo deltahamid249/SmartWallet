@@ -17,12 +17,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'انتهت صلاحية النموذج. أعد تحميل الصفحة وحاول مرة أخرى.';
     }
 
-    $phone = trim($_POST['phone'] ?? '');
-    $password = $_POST['password'] ?? '';
+    $loginIdentifier = trim((string) ($_POST['phone'] ?? ''));
+    $password = (string) ($_POST['password'] ?? '');
 
-    if ($error === '' && ($phone === '' || $password === '')) {
-        $error = 'يرجى إدخال رقم الهاتف وكلمة المرور.';
-    } elseif ($error === '') {
+    if ($error === '' && ($loginIdentifier === '' || $password === '')) {
+        $error = 'يرجى إدخال اسم المستخدم أو رقم الهاتف وكلمة المرور.';
+    }
+
+    if ($error === '') {
         try {
             $rateStmt = $pdo->prepare(
                 'SELECT COUNT(*)
@@ -31,8 +33,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                    AND created_at >= (CURRENT_TIMESTAMP - INTERVAL 15 MINUTE)
                    AND (phone = :phone OR ip_address = :ip_address)'
             );
+
             $rateStmt->execute([
-                ':phone' => $phone,
+                ':phone' => $loginIdentifier,
                 ':ip_address' => $ipAddress,
             ]);
 
@@ -43,20 +46,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $stmt = $pdo->prepare(
-                'SELECT id, password_hash, status
+                'SELECT id, password_hash, status, role
                  FROM users
-                 WHERE phone = :phone
+                 WHERE username = :username
+                    OR phone = :phone
                  LIMIT 1'
             );
 
             $stmt->execute([
-                ':phone' => $phone,
+                ':username' => $loginIdentifier,
+                ':phone' => $loginIdentifier,
             ]);
 
-            $user = $stmt->fetch();
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$user || !password_verify($password, $user['password_hash'])) {
-                $error = 'رقم الهاتف أو كلمة المرور غير صحيحة.';
+                $error = 'اسم المستخدم أو رقم الهاتف أو كلمة المرور غير صحيحة.';
             } elseif ($user['status'] !== 'active') {
                 $error = 'هذا الحساب غير نشط.';
             } else {
@@ -71,11 +76,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $attempt->execute([
                     ':user_id' => (int) $user['id'],
-                    ':phone' => $phone,
+                    ':phone' => $loginIdentifier,
                     ':ip_address' => $ipAddress,
                 ]);
 
-                header('Location: index.php');
+                if (
+                    ($user['role'] ?? '') === 'admin'
+                    && (int) $user['id'] === SYSTEM_ADMIN_ID
+                ) {
+                    header('Location: admin/index.php');
+                } else {
+                    header('Location: index.php');
+                }
+
                 exit;
             }
 
@@ -88,16 +101,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $attempt->execute([
                 ':user_id' => $user ? (int) $user['id'] : null,
-                ':phone' => $phone,
+                ':phone' => $loginIdentifier,
                 ':ip_address' => $ipAddress,
             ]);
         } catch (Throwable $e) {
             error_log($e->getMessage());
+
             $error = $e instanceof PDOException
                 ? 'حدث خطأ أثناء تسجيل الدخول.'
-                : ($e instanceof RuntimeException
-                ? $e->getMessage()
-                : 'حدث خطأ أثناء تسجيل الدخول.');
+                : (
+                    $e instanceof RuntimeException
+                        ? $e->getMessage()
+                        : 'حدث خطأ أثناء تسجيل الدخول.'
+                );
         }
     }
 }
@@ -107,7 +123,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>تسجيل الدخول - Smart Wallet</title>
 
@@ -118,91 +137,130 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f4f6f8;
-            color: #222;
+            min-height: 100vh;
+            font-family: Arial, Tahoma, sans-serif;
+            background: #f5f7fb;
+            color: #111827;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
         }
 
-        .container {
-            width: min(92%, 460px);
-            margin: 70px auto;
+        .login-container {
+            width: 100%;
+            max-width: 430px;
         }
 
-        .card {
-            background: #fff;
-            padding: 30px;
-            border-radius: 16px;
+        .login-card {
+            background: #ffffff;
+            border-radius: 22px;
+            padding: 30px 24px;
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e5e7eb;
+        }
+
+        .logo {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 18px;
+            border-radius: 20px;
+            background: #2563eb;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 34px;
+            font-weight: 900;
         }
 
         h1 {
             text-align: center;
-            margin-top: 0;
+            margin: 0 0 8px;
+            font-size: 26px;
+            font-weight: 900;
         }
 
         .subtitle {
             text-align: center;
-            color: #666;
-            margin-bottom: 25px;
+            color: #6b7280;
+            margin: 0 0 26px;
+            font-size: 14px;
         }
 
         label {
             display: block;
-            margin: 15px 0 7px;
-            font-weight: bold;
+            margin-bottom: 8px;
+            font-weight: 800;
+            font-size: 14px;
         }
 
         input {
             width: 100%;
-            padding: 13px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 18px;
+            border: 1px solid #d1d5db;
+            border-radius: 12px;
             font-size: 16px;
+            outline: none;
+            background: #ffffff;
+        }
+
+        input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10);
         }
 
         button {
             width: 100%;
-            margin-top: 24px;
-            padding: 13px;
             border: 0;
-            border-radius: 8px;
-            background: #1565c0;
-            color: #fff;
-            font-size: 17px;
+            border-radius: 12px;
+            padding: 14px;
+            background: #2563eb;
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 900;
             cursor: pointer;
         }
 
+        button:hover {
+            background: #1d4ed8;
+        }
+
         .error {
-            background: #ffebee;
-            color: #b71c1c;
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
             padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 15px;
+            margin-bottom: 18px;
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.6;
         }
 
-        .register-link {
+        .footer {
             text-align: center;
-            margin-top: 22px;
-        }
-
-        a {
-            color: #1565c0;
-            text-decoration: none;
+            margin-top: 18px;
+            color: #6b7280;
+            font-size: 13px;
         }
     </style>
 </head>
 
 <body>
 
-<div class="container">
+<div class="login-container">
 
-    <div class="card">
+    <div class="login-card">
 
-        <h1>تسجيل الدخول</h1>
+        <div class="logo">₿</div>
 
-        <div class="subtitle">
-            مرحبًا بك في Smart Wallet
-        </div>
+        <h1>المحفظة الذكية</h1>
+
+        <p class="subtitle">
+            تسجيل الدخول إلى حسابك
+        </p>
 
         <?php if ($error !== ''): ?>
             <div class="error">
@@ -212,24 +270,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <form method="POST" action="login.php">
 
-            <input
-                type="hidden"
-                name="_csrf"
-                value="<?= e(csrfToken()) ?>"
-            >
+            <?= csrfField() ?>
 
-            <label for="phone">رقم الهاتف</label>
+            <label for="phone">
+                اسم المستخدم أو رقم الهاتف
+            </label>
 
             <input
-                type="tel"
+                type="text"
+                inputmode="text"
                 id="phone"
                 name="phone"
                 required
-                autocomplete="tel"
-                value="<?= htmlspecialchars($_POST['phone'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                autocomplete="username"
+                value="<?= htmlspecialchars(
+                    $_POST['phone'] ?? '',
+                    ENT_QUOTES,
+                    'UTF-8'
+                ) ?>"
             >
 
-            <label for="password">كلمة المرور</label>
+            <label for="password">
+                كلمة المرور
+            </label>
 
             <input
                 type="password"
@@ -245,9 +308,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         </form>
 
-        <div class="register-link">
-            ليس لديك حساب؟
-            <a href="register.php">إنشاء حساب جديد</a>
+        <div class="footer">
+            نظام المحفظة الذكية
         </div>
 
     </div>

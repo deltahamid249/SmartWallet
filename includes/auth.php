@@ -38,6 +38,21 @@ function currentUserId(): ?int
 }
 
 /**
+ * رقم حساب مدير النظام الرئيسي.
+ * هذا الرقم ثابت ولا يتأثر بتغيير اسم المستخدم.
+ */
+const SYSTEM_ADMIN_ID = 9;
+
+/**
+ * هل الحساب الحالي هو مدير النظام الرئيسي؟
+ */
+function isSystemAdmin(): bool
+{
+    return isLoggedIn()
+        && currentUserId() === SYSTEM_ADMIN_ID;
+}
+
+/**
  * هل المستخدم الحالي مدير؟
  */
 function isAdmin(): bool
@@ -63,7 +78,8 @@ function isAdmin(): bool
     }
 
     return $user['status'] === 'active'
-        && $user['role'] === 'admin';
+        && $user['role'] === 'admin'
+        && (int) currentUserId() === SYSTEM_ADMIN_ID;
 }
 
 /**

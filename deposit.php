@@ -536,7 +536,7 @@ function depositStatusLabel(string $status): string
         }
 
         .status-rejected {
-            color: #dc2626;
+            color: #16a34a;
         }
 
         .status-cancelled {
@@ -547,6 +547,32 @@ function depositStatusLabel(string $status): string
             color: #6b7280;
             font-size: 13px;
         }
+    
+        /* Unified financial amount style */
+        .amount,
+        .balance,
+        .balance-number,
+        .balance-value,
+        .balance strong,
+        .value.amount,
+        .money,
+        .money-value {
+            color: #16a34a !important;
+            font-weight: 900;
+        }
+
+        .amount,
+        .money,
+        .money-value {
+            white-space: nowrap;
+        }
+
+        .balance-card,
+        .balance,
+        .money-card {
+            max-width: 100%;
+        }
+
     </style>
 </head>
 

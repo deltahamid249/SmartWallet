@@ -170,7 +170,7 @@ $services = [
 
         .services {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 16px;
         }
 
@@ -230,12 +230,6 @@ $services = [
         }
 
         @media (max-width: 800px) {
-            .services {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        @media (max-width: 560px) {
             .container {
                 width: min(100% - 16px, 1100px);
                 margin-top: 10px;
@@ -249,14 +243,36 @@ $services = [
                 font-size: 23px;
             }
 
-            .services {
-                grid-template-columns: 1fr;
-            }
-
             .balance {
                 width: 100%;
             }
         }
+    
+        /* Unified financial amount style */
+        .amount,
+        .balance,
+        .balance-number,
+        .balance-value,
+        .balance strong,
+        .value.amount,
+        .money,
+        .money-value {
+            color: #16a34a !important;
+            font-weight: 900;
+        }
+
+        .amount,
+        .money,
+        .money-value {
+            white-space: nowrap;
+        }
+
+        .balance-card,
+        .balance,
+        .money-card {
+            max-width: 100%;
+        }
+
     </style>
 </head>
 

@@ -208,3 +208,10 @@ function createAdminNotification(
         ':target_id' => $targetId,
     ]);
 }
+
+function csrfField(): string
+{
+    return '<input type="hidden" name="_csrf" value="' .
+        htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8') .
+        '">';
+}
