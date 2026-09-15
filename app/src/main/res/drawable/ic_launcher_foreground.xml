@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.65"
+        android:scaleY="0.65"
+        android:translateX="18.9"
+        android:translateY="18.9">
+        <!-- Main Wallet Card / Body -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M18,24h72c4.4,0 8,3.6 8,8v44c0,4.4 -3.6,8 -8,8H18c-4.4,0 -8,-3.6 -8,-8V32C10,27.6 13.6,24 18,24z" />
+        <!-- Top flap accent -->
+        <path
+            android:fillColor="#E2E8F0"
+            android:pathData="M24,24h60v6H24z" />
+        <!-- Emerald clasp badge -->
+        <path
+            android:fillColor="#16A34A"
+            android:pathData="M66,42h32c3.3,0 6,2.7 6,6v12c0,3.3 -2.7,6 -6,6H66c-3.3,0 -6,-2.7 -6,-6V48C60,44.7 62.7,42 66,42z" />
+        <!-- Clasp circle / coin -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M78,54m-4,0a4,4 0 1,0 8,0a4,4 0 1,0 -8,0" />
+    </group>
+</vector>

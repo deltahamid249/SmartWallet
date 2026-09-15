@@ -1,0 +1,8 @@
+{
+  "name": "SmartWallet",
+  "description": "A smart electronic wallet for transfers, deposits, withdrawals, and utility service payments.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

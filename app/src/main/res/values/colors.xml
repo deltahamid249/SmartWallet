@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary_navy">#0D2238</color>
+    <color name="primary_navy_dark">#081726</color>
+    <color name="accent_green">#16A34A</color>
+    <color name="accent_green_light">#22C55E</color>
+    <color name="background_light">#F4F6F8</color>
+    <color name="surface_white">#FFFFFF</color>
+</resources>
