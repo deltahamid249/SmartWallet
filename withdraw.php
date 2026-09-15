@@ -49,7 +49,7 @@ if (
     $withdrawalMethod = trim((string) ($_POST['withdrawal_method'] ?? 'manual'));
     $note = cleanNote($_POST['note'] ?? null);
 
-    if ($amount === null || (float) $amount <= 0) {
+    if ($amount === null || bccomp($amount, '0.00', 2) <= 0) {
         flash('error', 'أدخل مبلغ سحب صحيح.');
         header('Location: /withdraw.php');
         exit;
@@ -106,10 +106,10 @@ if (
             throw new RuntimeException('Wallet not found');
         }
 
-        $currentBalance = (float) $lockedWallet['balance'];
-        $requestedAmount = (float) $amount;
+        $currentBalance = (string) $lockedWallet['balance'];
+        $requestedAmount = (string) $amount;
 
-        if ($requestedAmount > $currentBalance) {
+        if (bccomp($requestedAmount, $currentBalance, 2) > 0) {
             throw new RuntimeException(
                 'الرصيد غير كافٍ لتنفيذ طلب السحب.'
             );
@@ -455,7 +455,7 @@ function withdrawalMethodLabel(string $method): string
         }
 
         .status-rejected {
-            color: #dc2626;
+            color: #16a34a;
         }
 
         .status-cancelled {
@@ -473,6 +473,32 @@ function withdrawalMethodLabel(string $method): string
             font-size: 13px;
             margin-top: -10px;
             margin-bottom: 18px;
+        }
+
+    
+        /* Unified financial amount style */
+        .amount,
+        .balance,
+        .balance-number,
+        .balance-value,
+        .balance strong,
+        .value.amount,
+        .money,
+        .money-value {
+            color: #16a34a !important;
+            font-weight: 900;
+        }
+
+        .amount,
+        .money,
+        .money-value {
+            white-space: nowrap;
+        }
+
+        .balance-card,
+        .balance,
+        .money-card {
+            max-width: 100%;
         }
 
     </style>

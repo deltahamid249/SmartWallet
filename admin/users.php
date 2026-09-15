@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/functions.php';
 
 requireAdmin();
 
@@ -11,7 +12,7 @@ $search = trim((string) ($_GET['search'] ?? ''));
 $status = trim((string) ($_GET['status'] ?? 'all'));
 $role = trim((string) ($_GET['role'] ?? 'all'));
 
-$allowedStatuses = ['all', 'active', 'inactive'];
+$allowedStatuses = ['all', 'active', 'blocked'];
 $allowedRoles = ['all', 'user', 'admin'];
 
 if (!in_array($status, $allowedStatuses, true)) {
@@ -28,6 +29,7 @@ $params = [];
 if ($search !== '') {
     $where[] = "(
         u.full_name LIKE :search
+        OR u.username LIKE :search
         OR u.phone LIKE :search
         OR u.email LIKE :search
     )";
@@ -55,6 +57,7 @@ $stmt = $pdo->prepare("
     SELECT
         u.id,
         u.full_name,
+        u.username,
         u.phone,
         u.email,
         u.role,
@@ -76,7 +79,7 @@ $statsStmt = $pdo->query("
     SELECT
         COUNT(*) AS total,
         SUM(status = 'active') AS active,
-        SUM(status = 'inactive') AS inactive,
+        SUM(status = 'blocked') AS inactive,
         SUM(role = 'admin') AS admins
     FROM users
 ");
@@ -87,7 +90,7 @@ function userStatusLabel(string $status): string
 {
     return match ($status) {
         'active' => 'نشط',
-        'inactive' => 'معطل',
+        'blocked' => 'معطل',
         default => $status
     };
 }
@@ -113,7 +116,7 @@ function userRoleLabel(string $role): string
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>إدارة المستخدمين</title>
+    <title>إدارة المستخدمين - المحفظة الذكية</title>
 
     <style>
 
@@ -130,79 +133,118 @@ function userRoleLabel(string $role): string
 
         .container {
             width: min(1250px, 94%);
-            margin: 30px auto;
+            margin: 20px auto 35px;
         }
 
         .topbar {
             background: #ffffff;
-            padding: 18px 20px;
-            border-radius: 16px;
+            padding: 17px 18px;
+            border-radius: 18px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             gap: 15px;
             box-shadow: 0 4px 16px rgba(0,0,0,.07);
-            margin-bottom: 20px;
+            margin-bottom: 16px;
+        }
+
+        .title-box {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+        }
+
+        .title-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            background: #eff6ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 25px;
         }
 
         .topbar h1 {
             margin: 0;
-            font-size: 22px;
+            font-size: 21px;
+            font-weight: 900;
+        }
+
+        .subtitle {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .links {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
         }
 
         .links a {
             text-decoration: none;
             color: #2563eb;
-            font-weight: bold;
-            margin-right: 10px;
+            background: #eff6ff;
+            padding: 9px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 900;
         }
 
         .stats {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
+            gap: 12px;
+            margin-bottom: 16px;
         }
 
         .stat {
             background: #ffffff;
-            padding: 20px;
+            padding: 17px;
             border-radius: 16px;
             box-shadow: 0 4px 16px rgba(0,0,0,.06);
+            text-align: center;
         }
 
         .stat span {
             display: block;
             color: #64748b;
-            margin-bottom: 8px;
+            margin-bottom: 7px;
+            font-size: 12px;
+            font-weight: 800;
         }
 
         .stat strong {
-            font-size: 25px;
+            font-size: 23px;
+            font-weight: 900;
         }
 
         .filters {
             background: #ffffff;
-            padding: 18px;
+            padding: 15px;
             border-radius: 16px;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             box-shadow: 0 4px 16px rgba(0,0,0,.06);
         }
 
         .filters form {
             display: grid;
             grid-template-columns: 2fr 1fr 1fr auto;
-            gap: 10px;
+            gap: 9px;
         }
 
         input,
         select {
             width: 100%;
-            padding: 12px;
+            padding: 11px;
             border: 1px solid #d8dee8;
             border-radius: 9px;
-            font-size: 15px;
+            font-size: 14px;
             outline: none;
+            background: #ffffff;
         }
 
         input:focus,
@@ -213,10 +255,10 @@ function userRoleLabel(string $role): string
         .search-btn {
             border: 0;
             border-radius: 9px;
-            padding: 12px 18px;
+            padding: 11px 18px;
             background: #2563eb;
             color: #ffffff;
-            font-weight: bold;
+            font-weight: 900;
             cursor: pointer;
         }
 
@@ -230,18 +272,36 @@ function userRoleLabel(string $role): string
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 1050px;
+            min-width: 1120px;
         }
 
         th,
         td {
-            padding: 14px;
+            padding: 13px;
             border-bottom: 1px solid #edf0f4;
             text-align: right;
+            vertical-align: middle;
         }
 
         th {
             background: #f8fafc;
+            font-size: 13px;
+            font-weight: 900;
+        }
+
+        td {
+            font-size: 13px;
+        }
+
+        .user-name {
+            font-weight: 900;
+        }
+
+        .username {
+            display: block;
+            color: #64748b;
+            font-size: 11px;
+            margin-top: 3px;
         }
 
         .status,
@@ -249,8 +309,8 @@ function userRoleLabel(string $role): string
             display: inline-block;
             padding: 6px 10px;
             border-radius: 8px;
-            font-size: 13px;
-            font-weight: bold;
+            font-size: 12px;
+            font-weight: 900;
         }
 
         .status.active {
@@ -258,7 +318,7 @@ function userRoleLabel(string $role): string
             color: #166534;
         }
 
-        .status.inactive {
+        .status.blocked {
             background: #fee2e2;
             color: #991b1b;
         }
@@ -274,44 +334,128 @@ function userRoleLabel(string $role): string
         }
 
         .balance {
-            font-weight: bold;
+            color: #16a34a !important;
+            font-weight: 900;
             white-space: nowrap;
         }
 
-        .view-btn {
-            display: inline-block;
-            padding: 8px 12px;
-            border-radius: 8px;
-            background: #2563eb;
-            color: #ffffff;
+        .actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 36px;
+            padding: 7px 10px;
+            border-radius: 9px;
             text-decoration: none;
-            font-weight: bold;
+            font-size: 12px;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
+        .edit-btn {
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .delete-btn {
+            background: #fef2f2;
+            color: #b91c1c;
+        }
+
+        .protected-btn {
+            background: #f1f5f9;
+            color: #64748b;
+            cursor: not-allowed;
         }
 
         .empty {
-            padding: 40px;
+            padding: 45px 20px;
             text-align: center;
             color: #64748b;
+            font-weight: 800;
         }
 
         .user-id {
             color: #64748b;
-            font-size: 12px;
+            font-size: 11px;
+        }
+
+        .protected-label {
+            display: block;
+            margin-top: 5px;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 800;
         }
 
         @media (max-width: 800px) {
 
-            .stats {
-                grid-template-columns: repeat(2, 1fr);
+            .container {
+                width: min(96%, 1250px);
+                margin-top: 10px;
             }
 
             .topbar {
-                align-items: flex-start;
+                align-items: stretch;
                 flex-direction: column;
+            }
+
+            .links {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .links a {
+                text-align: center;
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 9px;
+            }
+
+            .stat {
+                padding: 14px 8px;
             }
 
             .filters form {
                 grid-template-columns: 1fr;
+            }
+
+            .search-btn {
+                width: 100%;
+            }
+
+        }
+
+        @media (max-width: 420px) {
+
+            .title-icon {
+                width: 44px;
+                height: 44px;
+                font-size: 22px;
+            }
+
+            .topbar h1 {
+                font-size: 18px;
+            }
+
+            .subtitle {
+                font-size: 10px;
+            }
+
+            .stat strong {
+                font-size: 20px;
+            }
+
+            .stat span {
+                font-size: 10px;
             }
 
         }
@@ -326,21 +470,40 @@ function userRoleLabel(string $role): string
 
     <div class="topbar">
 
-        <h1>👥 إدارة المستخدمين</h1>
+        <div class="title-box">
+
+            <div class="title-icon">
+                👥
+            </div>
+
+            <div>
+
+                <h1>
+                    إدارة المستخدمين
+                </h1>
+
+                <p class="subtitle">
+                    عرض وتعديل وإدارة حسابات مستخدمي المحفظة
+                </p>
+
+            </div>
+
+        </div>
 
         <div class="links">
 
             <a href="index.php">
-                لوحة الإدارة
+                🛡️ لوحة الإدارة
             </a>
 
             <a href="../index.php">
-                الرئيسية
+                🏠 الرئيسية
             </a>
 
         </div>
 
     </div>
+
 
     <div class="stats">
 
@@ -394,6 +557,7 @@ function userRoleLabel(string $role): string
 
     </div>
 
+
     <div class="filters">
 
         <form method="get">
@@ -402,20 +566,29 @@ function userRoleLabel(string $role): string
                 type="text"
                 name="search"
                 value="<?= e($search) ?>"
-                placeholder="ابحث بالاسم أو الهاتف أو البريد الإلكتروني"
+                placeholder="ابحث بالاسم أو اسم المستخدم أو الهاتف أو البريد"
             >
 
             <select name="status">
 
-                <option value="all" <?= $status === 'all' ? 'selected' : '' ?>>
+                <option
+                    value="all"
+                    <?= $status === 'all' ? 'selected' : '' ?>
+                >
                     كل الحالات
                 </option>
 
-                <option value="active" <?= $status === 'active' ? 'selected' : '' ?>>
+                <option
+                    value="active"
+                    <?= $status === 'active' ? 'selected' : '' ?>
+                >
                     نشط
                 </option>
 
-                <option value="inactive" <?= $status === 'inactive' ? 'selected' : '' ?>>
+                <option
+                    value="blocked"
+                    <?= $status === 'blocked' ? 'selected' : '' ?>
+                >
                     معطل
                 </option>
 
@@ -423,15 +596,24 @@ function userRoleLabel(string $role): string
 
             <select name="role">
 
-                <option value="all" <?= $role === 'all' ? 'selected' : '' ?>>
+                <option
+                    value="all"
+                    <?= $role === 'all' ? 'selected' : '' ?>
+                >
                     كل الأدوار
                 </option>
 
-                <option value="user" <?= $role === 'user' ? 'selected' : '' ?>>
+                <option
+                    value="user"
+                    <?= $role === 'user' ? 'selected' : '' ?>
+                >
                     مستخدم
                 </option>
 
-                <option value="admin" <?= $role === 'admin' ? 'selected' : '' ?>>
+                <option
+                    value="admin"
+                    <?= $role === 'admin' ? 'selected' : '' ?>
+                >
                     مدير
                 </option>
 
@@ -441,12 +623,13 @@ function userRoleLabel(string $role): string
                 type="submit"
                 class="search-btn"
             >
-                بحث
+                🔎 بحث
             </button>
 
         </form>
 
     </div>
+
 
     <div class="table-wrap">
 
@@ -463,44 +646,102 @@ function userRoleLabel(string $role): string
                 <thead>
 
                     <tr>
-                        <th>ID</th>
-                        <th>المستخدم</th>
-                        <th>الهاتف</th>
-                        <th>البريد الإلكتروني</th>
-                        <th>الدور</th>
-                        <th>الحالة</th>
-                        <th>الرصيد</th>
-                        <th>تاريخ التسجيل</th>
-                        <th>الإجراء</th>
+
+                        <th>
+                            ID
+                        </th>
+
+                        <th>
+                            المستخدم
+                        </th>
+
+                        <th>
+                            الهاتف
+                        </th>
+
+                        <th>
+                            البريد الإلكتروني
+                        </th>
+
+                        <th>
+                            الدور
+                        </th>
+
+                        <th>
+                            الحالة
+                        </th>
+
+                        <th>
+                            الرصيد
+                        </th>
+
+                        <th>
+                            تاريخ التسجيل
+                        </th>
+
+                        <th>
+                            إدارة الحساب
+                        </th>
+
                     </tr>
 
                 </thead>
+
 
                 <tbody>
 
                 <?php foreach ($users as $user): ?>
 
+                    <?php
+                    $userId = (int) $user['id'];
+                    $isProtectedAdmin = $userId === SYSTEM_ADMIN_ID;
+                    ?>
+
                     <tr>
 
                         <td>
+
                             <span class="user-id">
-                                #<?= (int) $user['id'] ?>
+                                #<?= $userId ?>
                             </span>
+
                         </td>
 
+
                         <td>
-                            <strong>
+
+                            <span class="user-name">
                                 <?= e($user['full_name']) ?>
-                            </strong>
+                            </span>
+
+                            <?php if (!empty($user['username'])): ?>
+
+                                <span class="username">
+                                    @<?= e($user['username']) ?>
+                                </span>
+
+                            <?php endif; ?>
+
+                            <?php if ($isProtectedAdmin): ?>
+
+                                <span class="protected-label">
+                                    🔐 مدير النظام الرئيسي
+                                </span>
+
+                            <?php endif; ?>
+
                         </td>
+
 
                         <td>
                             <?= e($user['phone']) ?>
                         </td>
 
+
                         <td>
                             <?= e($user['email'] ?? '') ?>
                         </td>
+
 
                         <td>
 
@@ -510,6 +751,7 @@ function userRoleLabel(string $role): string
 
                         </td>
 
+
                         <td>
 
                             <span class="status <?= e($user['status']) ?>">
@@ -518,29 +760,52 @@ function userRoleLabel(string $role): string
 
                         </td>
 
+
                         <td class="balance">
 
-                            <?= number_format(
-                                (float) $user['balance'],
-                                2
-                            ) ?>
-
+                            <?= formatMoney($user['balance']) ?>
                             SDG
 
                         </td>
+
 
                         <td>
                             <?= e($user['created_at']) ?>
                         </td>
 
+
                         <td>
 
-                            <a
-                                class="view-btn"
-                                href="user.php?id=<?= (int) $user['id'] ?>"
-                            >
-                                عرض
-                            </a>
+                            <div class="actions">
+
+                                <a
+                                    href="user.php?id=<?= $userId ?>"
+                                    class="action-btn edit-btn"
+                                >
+                                    ✏️ تعديل
+                                </a>
+
+                                <?php if ($isProtectedAdmin): ?>
+
+                                    <span
+                                        class="action-btn protected-btn"
+                                        title="حساب مدير النظام الرئيسي محمي"
+                                    >
+                                        🔐 محمي
+                                    </span>
+
+                                <?php else: ?>
+
+                                    <a
+                                        href="user.php?id=<?= $userId ?>#delete"
+                                        class="action-btn delete-btn"
+                                    >
+                                        🗑️ حذف
+                                    </a>
+
+                                <?php endif; ?>
+
+                            </div>
 
                         </td>
 
@@ -555,6 +820,7 @@ function userRoleLabel(string $role): string
         <?php endif; ?>
 
     </div>
+
 
 </div>
 

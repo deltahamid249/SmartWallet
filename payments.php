@@ -12,6 +12,7 @@ $error = flash('error') ?? '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $amount = normalizeAmount($_POST['amount'] ?? '');
     $merchantName = trim((string)($_POST['merchant_name'] ?? ''));
+    $merchantAccount = trim((string)($_POST['merchant_account'] ?? ''));
 
     if (!verifyCsrf($_POST['_csrf'] ?? null)) {
         $error = 'انتهت صلاحية النموذج. أعد تحميل الصفحة وحاول مرة أخرى.';
@@ -23,6 +24,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'يرجى إدخال اسم الجهة أو التاجر.';
     } elseif (mb_strlen($merchantName) > 150) {
         $error = 'اسم الجهة طويل جدًا.';
+    } elseif ($merchantAccount === '') {
+        $error = 'يرجى إدخال رقم حساب المتجر.';
+    } elseif (mb_strlen($merchantAccount) > 100) {
+        $error = 'رقم حساب المتجر طويل جدًا.';
     } else {
         try {
             $pdo->beginTransaction();
@@ -44,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('لم يتم العثور على محفظتك.');
             }
 
-            if ((float)$wallet['balance'] < (float)$amount) {
+            if (bccomp((string) $wallet['balance'], (string) $amount, 2) < 0) {
                 throw new RuntimeException('الرصيد غير كافٍ لإتمام عملية الدفع.');
             }
 
@@ -67,15 +72,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $paymentStmt = $pdo->prepare(
                 'INSERT INTO payments
-                (user_id, amount, merchant_name, reference, status)
+                (user_id, amount, merchant_name, merchant_account, reference, status)
                 VALUES
-                (:user_id, :amount, :merchant_name, :reference, :status)'
+                (:user_id, :amount, :merchant_name, :merchant_account, :reference, :status)'
             );
 
             $paymentStmt->execute([
                 ':user_id' => $userId,
                 ':amount' => $amount,
                 ':merchant_name' => $merchantName,
+                ':merchant_account' => $merchantAccount,
                 ':reference' => $reference,
                 ':status' => 'completed'
             ]);
@@ -211,8 +217,9 @@ $payments = $paymentsStmt->fetchAll();
 
         .balance strong {
             display: block;
-            font-size: 25px;
+            font-size: 23px;
             margin-top: 5px;
+            color: #22c55e;
         }
 
         .card {
@@ -301,8 +308,10 @@ $payments = $paymentsStmt->fetchAll();
         }
 
         .amount {
-            font-weight: bold;
-            color: #b91c1c;
+            font-weight: 900;
+            color: #16a34a;
+            font-size: 17px;
+            white-space: nowrap;
         }
 
         .reference,
@@ -337,6 +346,32 @@ $payments = $paymentsStmt->fetchAll();
             text-decoration: none;
             font-weight: bold;
         }
+    
+        /* Unified financial amount style */
+        .amount,
+        .balance,
+        .balance-number,
+        .balance-value,
+        .balance strong,
+        .value.amount,
+        .money,
+        .money-value {
+            color: #16a34a !important;
+            font-weight: 900;
+        }
+
+        .amount,
+        .money,
+        .money-value {
+            white-space: nowrap;
+        }
+
+        .balance-card,
+        .balance,
+        .money-card {
+            max-width: 100%;
+        }
+
     </style>
 </head>
 
@@ -406,6 +441,20 @@ $payments = $paymentsStmt->fetchAll();
                 required
             >
 
+            <label for="merchant_account">
+                رقم حساب المتجر
+            </label>
+
+            <input
+                type="text"
+                id="merchant_account"
+                name="merchant_account"
+                maxlength="100"
+                inputmode="numeric"
+                placeholder="مثال: 123456789"
+                required
+            >
+
             <label for="amount">
                 مبلغ الدفع
             </label>
@@ -437,6 +486,10 @@ $payments = $paymentsStmt->fetchAll();
 
         <h2>آخر المدفوعات</h2>
 
+        <div class="hint">
+            تظهر قيمة كل عملية باللون الأخضر، مع اسم المتجر ورقم حسابه.
+        </div>
+
         <?php if (!$payments): ?>
 
             <div class="empty">
@@ -460,6 +513,11 @@ $payments = $paymentsStmt->fetchAll();
                             <?= htmlspecialchars($user['currency']) ?>
                         </div>
 
+                    </div>
+
+                    <div class="reference">
+                        رقم حساب المتجر:
+                        <?= htmlspecialchars((string)($payment['merchant_account'] ?? 'غير مسجل')) ?>
                     </div>
 
                     <div class="reference">

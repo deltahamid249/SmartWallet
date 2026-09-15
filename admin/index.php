@@ -2,318 +2,611 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/functions.php';
 
 requireAdmin();
+
+global $pdo;
 
 $stats = [
     'users' => 0,
     'active_users' => 0,
-    'wallets' => 0,
-    'balances' => 0,
-    'pending_withdrawals' => 0,
-    'pending_deposits' => 0,
-    'transfers' => 0,
+    'pending_users' => 0,
+    'balances' => '0.00',
 ];
 
-$stmt = $pdo->query("SELECT COUNT(*) FROM users");
-$stats['users'] = (int) $stmt->fetchColumn();
+try {
+    $stmt = $pdo->query("
+        SELECT
+            COUNT(*) AS users,
+            SUM(status = 'active') AS active_users,
+            SUM(status = 'pending') AS pending_users
+        FROM users
+    ");
 
-$stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE status = 'active'");
-$stats['active_users'] = (int) $stmt->fetchColumn();
+    $userStats = $stmt->fetch(PDO::FETCH_ASSOC);
 
-$stmt = $pdo->query("SELECT COUNT(*) FROM wallets");
-$stats['wallets'] = (int) $stmt->fetchColumn();
+    if ($userStats) {
+        $stats['users'] = (int) ($userStats['users'] ?? 0);
+        $stats['active_users'] = (int) ($userStats['active_users'] ?? 0);
+        $stats['pending_users'] = (int) ($userStats['pending_users'] ?? 0);
+    }
 
-$stmt = $pdo->query("SELECT COALESCE(SUM(balance), 0) FROM wallets");
-$stats['balances'] = (float) $stmt->fetchColumn();
+    $stmt = $pdo->query("
+        SELECT COALESCE(SUM(balance), 0)
+        FROM wallets
+    ");
 
-$stmt = $pdo->query("SELECT COUNT(*) FROM withdrawal_requests WHERE status = 'pending'");
-$stats['pending_withdrawals'] = (int) $stmt->fetchColumn();
+    $stats['balances'] = (string) ($stmt->fetchColumn() ?? '0.00');
+} catch (Throwable $e) {
+    // إبقاء لوحة الإدارة تعمل في حال تعذر تحميل الإحصاءات.
+}
 
-$stmt = $pdo->query("SELECT COUNT(*) FROM deposit_requests WHERE status = 'pending'");
-$stats['pending_deposits'] = (int) $stmt->fetchColumn();
+$cards = [
+    [
+        'icon' => '👥',
+        'title' => 'إدارة المستخدمين',
+        'description' => 'عرض وتعديل وإدارة المستخدمين',
+        'url' => 'users.php',
+    ],
+    [
+        'icon' => '💰',
+        'title' => 'الإيداعات',
+        'description' => 'إدارة طلبات الإيداع',
+        'url' => 'deposits.php',
+    ],
+    [
+        'icon' => '💸',
+        'title' => 'السحوبات',
+        'description' => 'إدارة طلبات السحب',
+        'url' => 'withdrawals.php',
+    ],
+    [
+        'icon' => '🔔',
+        'title' => 'الإشعارات',
+        'description' => 'إدارة إشعارات النظام',
+        'url' => 'notifications.php',
+    ],
+    [
+        'icon' => '🛠️',
+        'title' => 'الخدمات',
+        'description' => 'إدارة الخدمات والطلبات',
+        'url' => 'services.php',
+    ],
+    [
+        'icon' => '🔄',
+        'title' => 'التحويلات',
+        'description' => 'متابعة التحويلات',
+        'url' => 'transfers.php',
+    ],
+    [
+        'icon' => '⚙️',
+        'title' => 'إعدادات النظام',
+        'description' => 'إعدادات حساب مدير النظام',
+        'url' => 'settings.php',
+    ],
+];
 
-$stmt = $pdo->query("SELECT COUNT(*) FROM transfers");
-$stats['transfers'] = (int) $stmt->fetchColumn();
-
-$currency = 'SDG';
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة الإدارة - المحفظة الذكية</title>
 
-    <style>
-        * {
-            box-sizing: border-box;
-        }
+<meta charset="UTF-8">
 
-        body {
-            margin: 0;
-            font-family: Arial, Tahoma, sans-serif;
-            background: #f5f7fb;
-            color: #111827;
-        }
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
-        .topbar {
-            background: #111827;
-            color: #fff;
-            padding: 18px 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
+<title>لوحة الإدارة - المحفظة الذكية</title>
 
-        .topbar h1 {
-            margin: 0;
-            font-size: 22px;
-        }
+<style>
 
-        .topbar a {
-            color: #fff;
-            text-decoration: none;
-            margin-right: 12px;
-            font-weight: bold;
-        }
+* {
+    box-sizing: border-box;
+}
 
-        .container {
-            max-width: 1200px;
-            margin: 30px auto;
-            padding: 0 18px;
-        }
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: #f5f7fb;
+    color: #111827;
+    font-family: Tahoma, Arial, sans-serif;
+}
 
-        .welcome {
-            margin-bottom: 25px;
-        }
+.container {
+    width: min(1100px, calc(100% - 24px));
+    margin: 0 auto;
+    padding: 18px 0 30px;
+}
 
-        .welcome h2 {
-            margin: 0 0 8px;
-            font-size: 25px;
-        }
+.header {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 18px;
+    margin-bottom: 15px;
+    box-shadow: 0 5px 18px rgba(0,0,0,.07);
+}
 
-        .welcome p {
-            margin: 0;
-            color: #6b7280;
-        }
+.header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
 
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 18px;
-            margin-bottom: 30px;
-        }
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
 
-        .stat {
-            background: #fff;
-            border-radius: 16px;
-            padding: 22px;
-            box-shadow: 0 5px 18px rgba(0, 0, 0, .07);
-        }
+.brand-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #2563eb;
+    color: #ffffff;
+    font-size: 26px;
+    flex-shrink: 0;
+}
 
-        .stat-title {
-            color: #6b7280;
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
+.brand h1 {
+    margin: 0;
+    font-size: 21px;
+    font-weight: 900;
+}
 
-        .stat-value {
-            font-size: 26px;
-            font-weight: 900;
-        }
+.brand p {
+    margin: 5px 0 0;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 700;
+}
 
-        .services {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 18px;
-        }
+.logout {
+    text-decoration: none;
+    background: #f3f4f6;
+    color: #374151;
+    border-radius: 12px;
+    padding: 10px 13px;
+    font-size: 13px;
+    font-weight: 900;
+    white-space: nowrap;
+}
 
-        .service-card {
-            display: block;
-            background: #fff;
-            border-radius: 18px;
-            padding: 25px;
-            text-decoration: none;
-            color: #111827;
-            box-shadow: 0 5px 18px rgba(0, 0, 0, .07);
-            transition: .2s;
-        }
+.stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 15px;
+}
 
-        .service-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 9px 24px rgba(0, 0, 0, .10);
-        }
+.stat {
+    background: #f8fafc;
+    border-radius: 14px;
+    padding: 12px;
+    text-align: center;
+    border: 1px solid #eef2f7;
+}
 
-        .service-icon {
-            font-size: 35px;
-            margin-bottom: 12px;
-        }
+.stat-value {
+    font-size: 20px;
+    font-weight: 900;
+    color: #2563eb;
+}
 
-        .service-card h3 {
-            margin: 0 0 8px;
-            font-size: 19px;
-        }
+.stat-label {
+    margin-top: 4px;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 800;
+}
 
-        .service-card p {
-            margin: 0;
-            color: #6b7280;
-            line-height: 1.7;
-            font-size: 14px;
-        }
 
-        .badge {
-            display: inline-block;
-            margin-top: 12px;
-            padding: 6px 10px;
-            border-radius: 8px;
-            background: #f3f4f6;
-            font-size: 13px;
-            font-weight: bold;
-        }
+/* =========================
+   شريط الأخبار المتحرك
+   ========================= */
 
-        @media (max-width: 850px) {
-            .stats,
-            .services {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
+.news-ticker {
+    width: 100%;
+    height: 52px;
+    background: #ffffff;
+    border-radius: 15px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    box-shadow: 0 4px 14px rgba(0,0,0,.06);
+    border: 1px solid #edf0f5;
+}
 
-        @media (max-width: 560px) {
-            .stats,
-            .services {
-                grid-template-columns: 1fr;
-            }
+.news-ticker-label {
+    width: 52px;
+    height: 100%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #2563eb;
+    color: #ffffff;
+    font-size: 21px;
+    z-index: 2;
+}
 
-            .topbar {
-                align-items: flex-start;
-            }
+.news-ticker-window {
+    flex: 1;
+    overflow: hidden;
+    direction: ltr;
+}
 
-            .topbar h1 {
-                font-size: 19px;
-            }
+.news-ticker-track {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    animation: smartWalletTicker 24s linear infinite;
+}
 
-            .container {
-                margin-top: 20px;
-            }
-        }
-    </style>
+.news-ticker-track span {
+    display: inline-flex;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 900;
+    color: #172033;
+    padding: 0 28px;
+}
+
+.news-ticker-track span::after {
+    content: "•";
+    margin-right: 28px;
+    color: #2563eb;
+}
+
+@keyframes smartWalletTicker {
+
+    from {
+        transform: translateX(0);
+    }
+
+    to {
+        transform: translateX(-50%);
+    }
+
+}
+
+
+/* =========================
+   شبكة لوحة الإدارة 3 × 3
+   ========================= */
+
+.admin-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.admin-card {
+    min-width: 0;
+    min-height: 145px;
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 14px 10px;
+    text-decoration: none;
+    color: #111827;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border: 1px solid #edf0f5;
+    box-shadow: 0 5px 16px rgba(0,0,0,.06);
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.admin-card:active {
+    transform: scale(.97);
+}
+
+.card-icon {
+    width: 58px;
+    height: 58px;
+    border-radius: 17px;
+    background: #eff6ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 29px;
+    margin-bottom: 9px;
+}
+
+.card-title {
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1.35;
+}
+
+.card-description {
+    margin-top: 5px;
+    color: #6b7280;
+    font-size: 10px;
+    line-height: 1.4;
+    font-weight: 700;
+}
+
+.footer {
+    text-align: center;
+    color: #9ca3af;
+    font-size: 11px;
+    font-weight: 700;
+    padding-top: 20px;
+}
+
+
+/* =========================
+   الهاتف
+   ========================= */
+
+@media (max-width: 420px) {
+
+    .container {
+        width: calc(100% - 16px);
+        padding-top: 10px;
+    }
+
+    .admin-grid {
+        gap: 9px;
+    }
+
+    .admin-card {
+        min-height: 125px;
+        border-radius: 15px;
+        padding: 10px 6px;
+    }
+
+    .card-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        font-size: 24px;
+        margin-bottom: 7px;
+    }
+
+    .card-title {
+        font-size: 12px;
+    }
+
+    .card-description {
+        font-size: 9px;
+    }
+
+    .brand-icon {
+        width: 46px;
+        height: 46px;
+        font-size: 23px;
+    }
+
+    .brand h1 {
+        font-size: 18px;
+    }
+
+    .logout {
+        padding: 8px 9px;
+        font-size: 11px;
+    }
+
+    .news-ticker {
+        height: 46px;
+        border-radius: 13px;
+    }
+
+    .news-ticker-label {
+        width: 45px;
+        font-size: 18px;
+    }
+
+    .news-ticker-track span {
+        font-size: 12px;
+        padding: 0 18px;
+    }
+
+    .news-ticker-track span::after {
+        margin-right: 18px;
+    }
+
+}
+
+</style>
+
 </head>
 
 <body>
 
-<header class="topbar">
-    <h1>🛡️ لوحة الإدارة</h1>
+<div class="container">
 
-    <div>
-        <a href="../index.php">الرئيسية</a>
-        <a href="../logout.php">تسجيل الخروج</a>
+
+<header class="header">
+
+    <div class="header-top">
+
+        <div class="brand">
+
+            <div class="brand-icon">
+                🛡️
+            </div>
+
+            <div>
+
+                <h1>
+                    لوحة الإدارة
+                </h1>
+
+                <p>
+                    المحفظة الذكية — التحكم في النظام
+                </p>
+
+            </div>
+
+        </div>
+
+        <a
+            href="../logout.php"
+            class="logout"
+        >
+            تسجيل الخروج
+        </a>
+
     </div>
+
+
+    <div class="stats">
+
+        <div class="stat">
+
+            <div class="stat-value">
+                <?= $stats['users'] ?>
+            </div>
+
+            <div class="stat-label">
+                إجمالي المستخدمين
+            </div>
+
+        </div>
+
+
+        <div class="stat">
+
+            <div class="stat-value">
+                <?= $stats['active_users'] ?>
+            </div>
+
+            <div class="stat-label">
+                المستخدمون النشطون
+            </div>
+
+        </div>
+
+
+        <div class="stat">
+
+            <div class="stat-value">
+                <?= $stats['pending_users'] ?>
+            </div>
+
+            <div class="stat-label">
+                الحسابات المعلقة
+            </div>
+
+        </div>
+
+    </div>
+
 </header>
 
-<main class="container">
 
-    <section class="welcome">
-        <h2>مرحبًا بك في لوحة الإدارة</h2>
-        <p>إدارة ومتابعة عمليات المحفظة الذكية من مكان واحد.</p>
-    </section>
+<main>
 
-    <section class="stats">
 
-        <div class="stat">
-            <div class="stat-title">إجمالي المستخدمين</div>
-            <div class="stat-value"><?= $stats['users'] ?></div>
+<!-- شريط الأسماء المتحرك -->
+
+<div class="news-ticker">
+
+    <div class="news-ticker-label">
+        📢
+    </div>
+
+    <div class="news-ticker-window">
+
+        <div class="news-ticker-track">
+
+            <span>
+                إدارة المحفظة الذكية
+            </span>
+
+            <span>
+                وجدان محمد
+            </span>
+
+            <span>
+                مستورة مبارك
+            </span>
+
+            <span>
+                سارة عبدالعظيم
+            </span>
+
+
+            <!-- تكرار المحتوى لضمان استمرار الحركة -->
+
+            <span>
+                إدارة المحفظة الذكية
+            </span>
+
+            <span>
+                وجدان محمد
+            </span>
+
+            <span>
+                مستورة مبارك
+            </span>
+
+            <span>
+                سارة عبدالعظيم
+            </span>
+
         </div>
 
-        <div class="stat">
-            <div class="stat-title">المستخدمون النشطون</div>
-            <div class="stat-value"><?= $stats['active_users'] ?></div>
+    </div>
+
+</div>
+
+
+<!-- شبكة الإدارة -->
+
+<section class="admin-grid">
+
+<?php foreach ($cards as $card): ?>
+
+    <a
+        href="<?= htmlspecialchars($card['url'], ENT_QUOTES, 'UTF-8') ?>"
+        class="admin-card"
+    >
+
+        <div class="card-icon">
+            <?= htmlspecialchars($card['icon'], ENT_QUOTES, 'UTF-8') ?>
         </div>
 
-        <div class="stat">
-            <div class="stat-title">إجمالي المحافظ</div>
-            <div class="stat-value"><?= $stats['wallets'] ?></div>
+        <div class="card-title">
+            <?= htmlspecialchars($card['title'], ENT_QUOTES, 'UTF-8') ?>
         </div>
 
-        <div class="stat">
-            <div class="stat-title">إجمالي الأرصدة</div>
-            <div class="stat-value">
-                <?= number_format($stats['balances'], 2) ?>
-                <?= $currency ?>
-            </div>
+        <div class="card-description">
+            <?= htmlspecialchars($card['description'], ENT_QUOTES, 'UTF-8') ?>
         </div>
 
-        <div class="stat">
-            <div class="stat-title">السحوبات المعلقة</div>
-            <div class="stat-value"><?= $stats['pending_withdrawals'] ?></div>
-        </div>
+    </a>
 
-        <div class="stat">
-            <div class="stat-title">الإيداعات المعلقة</div>
-            <div class="stat-value"><?= $stats['pending_deposits'] ?></div>
-        </div>
+<?php endforeach; ?>
 
-    </section>
+</section>
 
-    <?php
-    $notificationStmt = $pdo->query("
-        SELECT COUNT(*)
-        FROM admin_notifications
-        WHERE is_read = 0
-    ");
-    $unreadNotifications = (int) $notificationStmt->fetchColumn();
-    ?>
-
-    <section class="services">
-
-        <a href="users.php" class="service-card">
-            <div class="service-icon">👥</div>
-            <h3>إدارة المستخدمين</h3>
-            <p>عرض المستخدمين والبحث عنهم وإدارة حالة الحساب والصلاحيات.</p>
-            <span class="badge"><?= $stats['users'] ?> مستخدم</span>
-        </a>
-
-        <a href="deposits.php" class="service-card">
-            <div class="service-icon">💰</div>
-            <h3>إدارة الإيداعات</h3>
-            <p>مراجعة طلبات الإيداع والموافقة عليها أو رفضها.</p>
-            <span class="badge"><?= $stats['pending_deposits'] ?> معلقة</span>
-        </a>
-
-        <a href="withdrawals.php" class="service-card">
-            <div class="service-icon">💸</div>
-            <h3>إدارة السحوبات</h3>
-            <p>مراجعة طلبات السحب والموافقة عليها أو رفضها.</p>
-            <span class="badge"><?= $stats['pending_withdrawals'] ?> معلقة</span>
-        </a>
-
-        <a href="notifications.php" class="service-card">
-            <div class="service-icon">🔔</div>
-            <h3>الإشعارات الإدارية</h3>
-            <p>متابعة الطلبات والأحداث التي تحتاج إلى مراجعة إدارية.</p>
-            <span class="badge"><?= $unreadNotifications ?> غير مقروءة</span>
-        </a>
-
-        <a href="services.php" class="service-card">
-            <div class="service-icon">🛠️</div>
-            <h3>إدارة الخدمات</h3>
-            <p>متابعة طلبات شحن الهاتف والخدمات الرقمية والعمليات المرتبطة بالمستخدمين.</p>
-            <span class="badge">طلبات الخدمات</span>
-        </a>
-
-        <a href="transfers.php" class="service-card">
-            <div class="service-icon">🔄</div>
-            <h3>إدارة التحويلات</h3>
-            <p>عرض ومتابعة جميع التحويلات بين المحافظ مع البحث والفلترة.</p>
-            <span class="badge"><?= $stats['transfers'] ?> تحويل</span>
-        </a>
-
-    </section>
 
 </main>
 
+
+<footer class="footer">
+
+    المحفظة الذكية © <?= date('Y') ?>
+
+</footer>
+
+
+</div>
+
 </body>
+
 </html>

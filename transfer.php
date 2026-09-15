@@ -305,6 +305,32 @@ if (!$user) {
         .success { background: #e8f7ee; color: #176b3a; }
         .error { background: #fdecec; color: #a52222; }
         .back { display: block; text-align: center; margin-top: 18px; color: #2563eb; }
+    
+        /* Unified financial amount style */
+        .amount,
+        .balance,
+        .balance-number,
+        .balance-value,
+        .balance strong,
+        .value.amount,
+        .money,
+        .money-value {
+            color: #16a34a !important;
+            font-weight: 900;
+        }
+
+        .amount,
+        .money,
+        .money-value {
+            white-space: nowrap;
+        }
+
+        .balance-card,
+        .balance,
+        .money-card {
+            max-width: 100%;
+        }
+
     </style>
 </head>
 <body>

@@ -16,7 +16,7 @@ if (!$requestId) {
 }
 
 $stmt = $pdo->prepare(
-    'SELECT sr.*, u.name AS user_name, u.phone AS user_phone
+    'SELECT sr.*, u.full_name AS user_name, u.phone AS user_phone
      FROM service_requests sr
      INNER JOIN users u ON u.id = sr.user_id
      WHERE sr.id = ? AND sr.user_id = ?
@@ -157,7 +157,7 @@ function detailValue(?string $value): string
 
         .status.failed {
             background: #fef2f2;
-            color: #b91c1c;
+            color: #16a34a;
         }
 
         .status.cancelled {
@@ -235,6 +235,32 @@ function detailValue(?string $value): string
                 padding: 16px;
             }
         }
+    
+        /* Unified financial amount style */
+        .amount,
+        .balance,
+        .balance-number,
+        .balance-value,
+        .balance strong,
+        .value.amount,
+        .money,
+        .money-value {
+            color: #16a34a !important;
+            font-weight: 900;
+        }
+
+        .amount,
+        .money,
+        .money-value {
+            white-space: nowrap;
+        }
+
+        .balance-card,
+        .balance,
+        .money-card {
+            max-width: 100%;
+        }
+
     </style>
 </head>
 
@@ -294,17 +320,17 @@ function detailValue(?string $value): string
         <div class="grid">
             <div class="item">
                 <span class="label">المبلغ</span>
-                <span class="value"><?= e(formatMoney((float) $request['amount'])) ?></span>
+                <span class="value"><?= e(formatMoney($request['amount'])) ?></span>
             </div>
 
             <div class="item">
                 <span class="label">الرسوم</span>
-                <span class="value"><?= e(formatMoney((float) $request['fee'])) ?></span>
+                <span class="value"><?= e(formatMoney($request['fee'])) ?></span>
             </div>
 
             <div class="item">
                 <span class="label">الإجمالي</span>
-                <span class="value"><?= e(formatMoney((float) $request['total_amount'])) ?></span>
+                <span class="value"><?= e(formatMoney($request['total_amount'])) ?></span>
             </div>
 
             <div class="item">

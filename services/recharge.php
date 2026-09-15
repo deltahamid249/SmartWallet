@@ -67,25 +67,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $amount = normalizeAmount($amountRaw);
 
-    if ($amount <= 0) {
+    if (bccomp((string) $amount, '0.00', 2) <= 0) {
         flash('error', 'أدخل مبلغًا صحيحًا.');
         header('Location: recharge.php');
         exit;
     }
 
-    if ($amount < 100) {
+    if (bccomp((string) $amount, '100.00', 2) < 0) {
         flash('error', 'الحد الأدنى للشحن هو 100 جنيه.');
         header('Location: recharge.php');
         exit;
     }
 
-    if ($amount > 100000) {
+    if (bccomp((string) $amount, '100000.00', 2) > 0) {
         flash('error', 'الحد الأقصى للشحن هو 100,000 جنيه.');
         header('Location: recharge.php');
         exit;
     }
 
-    $fee = 0.00;
+    $fee = '0.00';
     $totalAmount = $amount;
     $reference = 'RCH-' . strtoupper(bin2hex(random_bytes(6)));
 
@@ -291,7 +291,7 @@ $csrfToken = csrfToken();
         .error {
             background: #fef2f2;
             border: 1px solid #fecaca;
-            color: #b91c1c;
+            color: #16a34a;
             border-radius: 12px;
             padding: 14px;
             margin-bottom: 18px;
@@ -413,7 +413,7 @@ $csrfToken = csrfToken();
 
         .failed {
             background: #fef2f2;
-            color: #b91c1c;
+            color: #16a34a;
         }
 
         .cancelled {
@@ -450,6 +450,32 @@ $csrfToken = csrfToken();
                 text-align: center;
             }
         }
+    
+        /* Unified financial amount style */
+        .amount,
+        .balance,
+        .balance-number,
+        .balance-value,
+        .balance strong,
+        .value.amount,
+        .money,
+        .money-value {
+            color: #16a34a !important;
+            font-weight: 900;
+        }
+
+        .amount,
+        .money,
+        .money-value {
+            white-space: nowrap;
+        }
+
+        .balance-card,
+        .balance,
+        .money-card {
+            max-width: 100%;
+        }
+
     </style>
 </head>
 
@@ -634,19 +660,17 @@ $csrfToken = csrfToken();
                                 <strong>
                                     <?= e(
                                         formatMoney(
-                                            (float)
                                             $request['total_amount']
                                         )
                                     ) ?>
                                 </strong>
                                 SDG
 
-                                <?php if ((float) $request['fee'] > 0): ?>
+                                <?php if (bccomp((string) $request['fee'], '0.00', 2) > 0): ?>
                                     <div class="muted">
                                         الرسوم:
                                         <?= e(
                                             formatMoney(
-                                                (float)
                                                 $request['fee']
                                             )
                                         ) ?>

@@ -97,11 +97,11 @@ $totalTransfers = (int) $pdo
     ->query("SELECT COUNT(*) FROM transfers")
     ->fetchColumn();
 
-$totalAmount = (float) $pdo
+$totalAmount = (string) $pdo
     ->query("SELECT COALESCE(SUM(amount), 0) FROM transfers")
     ->fetchColumn();
 
-$completedAmount = (float) $pdo
+$completedAmount = (string) $pdo
     ->query("
         SELECT COALESCE(SUM(amount), 0)
         FROM transfers
@@ -109,7 +109,7 @@ $completedAmount = (float) $pdo
     ")
     ->fetchColumn();
 
-$pendingAmount = (float) $pdo
+$pendingAmount = (string) $pdo
     ->query("
         SELECT COALESCE(SUM(amount), 0)
         FROM transfers
@@ -417,6 +417,32 @@ function transferStatusClass(string $status): string
             }
         }
 
+    
+        /* Unified financial amount style */
+        .amount,
+        .balance,
+        .balance-number,
+        .balance-value,
+        .balance strong,
+        .value.amount,
+        .money,
+        .money-value {
+            color: #16a34a !important;
+            font-weight: 900;
+        }
+
+        .amount,
+        .money,
+        .money-value {
+            white-space: nowrap;
+        }
+
+        .balance-card,
+        .balance,
+        .money-card {
+            max-width: 100%;
+        }
+
     </style>
 
 </head>
@@ -469,7 +495,7 @@ function transferStatusClass(string $status): string
             </div>
 
             <div class="stat-value">
-                <?= number_format($totalAmount, 2) ?> SDG
+                <?= formatMoney($totalAmount) ?> SDG
             </div>
         </div>
 
@@ -479,7 +505,7 @@ function transferStatusClass(string $status): string
             </div>
 
             <div class="stat-value">
-                <?= number_format($completedAmount, 2) ?> SDG
+                <?= formatMoney($completedAmount) ?> SDG
             </div>
         </div>
 
@@ -489,7 +515,7 @@ function transferStatusClass(string $status): string
             </div>
 
             <div class="stat-value">
-                <?= number_format($pendingAmount, 2) ?> SDG
+                <?= formatMoney($pendingAmount) ?> SDG
             </div>
         </div>
 
@@ -638,10 +664,7 @@ function transferStatusClass(string $status): string
 
                             <td class="amount">
 
-                                <?= number_format(
-                                    (float) $transfer['amount'],
-                                    2
-                                ) ?>
+                                <?= formatMoney($transfer['amount']) ?>
 
                                 SDG
 

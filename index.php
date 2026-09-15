@@ -7,32 +7,153 @@ requireLogin();
 
 $userId = currentUserId();
 
-$stmt = $pdo->prepare("
-    SELECT
-        u.full_name,
-        w.balance
-    FROM users u
-    INNER JOIN wallets w ON w.user_id = u.id
-    WHERE u.id = :user_id
-    LIMIT 1
-");
+$isSystemAdmin = isAdmin();
 
-$stmt->execute([
-    'user_id' => $userId
-]);
+if ($isSystemAdmin) {
+    $stmt = $pdo->prepare("
+        SELECT full_name
+        FROM users
+        WHERE id = :user_id
+        LIMIT 1
+    ");
 
-$user = $stmt->fetch();
+    $stmt->execute([
+        'user_id' => $userId
+    ]);
 
-if (!$user) {
-    logoutUser();
-    header('Location: login.php');
-    exit;
+    $user = $stmt->fetch();
+
+    if (!$user) {
+        logoutUser();
+        header('Location: login.php');
+        exit;
+    }
+
+    $fullName = $user['full_name'];
+    $balance = '0.00';
+} else {
+    $stmt = $pdo->prepare("
+        SELECT
+            u.full_name,
+            w.balance
+        FROM users u
+        INNER JOIN wallets w ON w.user_id = u.id
+        WHERE u.id = :user_id
+        LIMIT 1
+    ");
+
+    $stmt->execute([
+        'user_id' => $userId
+    ]);
+
+    $user = $stmt->fetch();
+
+    if (!$user) {
+        logoutUser();
+        header('Location: login.php');
+        exit;
+    }
+
+    $fullName = $user['full_name'];
+    $balance = $user['balance'];
 }
 
-$fullName = $user['full_name'];
-$balance = $user['balance'];
-
 $currency = 'SDG';
+
+if ($isSystemAdmin) {
+    ?>
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>لوحة الإدارة - المحفظة الذكية</title>
+        <style>
+            * {
+                box-sizing: border-box;
+            }
+
+            body {
+                margin: 0;
+                min-height: 100vh;
+                background: #f4f6f8;
+                font-family: Tahoma, Arial, "Noto Sans Arabic", sans-serif;
+                color: #111827;
+            }
+
+            .admin-only {
+                width: 100%;
+                max-width: 560px;
+                min-height: 100vh;
+                margin: 0 auto;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 25px;
+            }
+
+            .admin-card {
+                width: 100%;
+                background: #ffffff;
+                border-radius: 24px;
+                padding: 30px 22px;
+                text-align: center;
+                box-shadow: 0 8px 28px rgba(0,0,0,.08);
+            }
+
+            .admin-card h1 {
+                margin: 0 0 8px;
+                font-size: 23px;
+            }
+
+            .admin-card p {
+                margin: 0 0 25px;
+                color: #64748b;
+                font-size: 14px;
+            }
+
+            .admin-icon {
+                width: 92px;
+                height: 92px;
+                margin: 0 auto 18px;
+                border-radius: 22px;
+                background: #2563eb;
+                color: #ffffff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 45px;
+            }
+
+            .admin-button {
+                display: block;
+                width: 100%;
+                padding: 16px;
+                border-radius: 14px;
+                background: #2563eb;
+                color: #ffffff;
+                text-decoration: none;
+                font-weight: 900;
+                font-size: 17px;
+            }
+        </style>
+    </head>
+    <body>
+        <main class="admin-only">
+            <section class="admin-card">
+                <div class="admin-icon">🛡️</div>
+                <h1>المحفظة الذكية</h1>
+                <p>حساب التحكم الإداري في النظام</p>
+                <a href="admin/index.php" class="admin-button">
+                    لوحة الإدارة
+                </a>
+            </section>
+        </main>
+    </body>
+    </html>
+    <?php
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -383,6 +504,32 @@ $currency = 'SDG';
                 font-size: 30px;
             }
         }
+    
+        /* Unified financial amount style */
+        .amount,
+        .balance,
+        .balance-number,
+        .balance-value,
+        .balance strong,
+        .value.amount,
+        .money,
+        .money-value {
+            color: #16a34a !important;
+            font-weight: 900;
+        }
+
+        .amount,
+        .money,
+        .money-value {
+            white-space: nowrap;
+        }
+
+        .balance-card,
+        .balance,
+        .money-card {
+            max-width: 100%;
+        }
+
     </style>
 </head>
 
@@ -453,6 +600,8 @@ $currency = 'SDG';
             الخدمات
         </h2>
 
+
+        <?php if (!$isSystemAdmin): ?>
 
         <div class="services-grid">
 
@@ -546,50 +695,53 @@ $currency = 'SDG';
             </a>
 
 
-            <?php if (isAdmin()): ?>
 
-            <!-- لوحة الإدارة -->
 
-            <a href="admin/index.php" class="service-card">
+
+            <!-- الخدمات -->
+
+            <a href="services/index.php" class="service-card">
 
                 <div class="service-icon">
-                    🛡️
+                    🛠️
                 </div>
 
                 <h3>
-                    لوحة الإدارة
+                    الخدمات
                 </h3>
 
             </a>
 
-            <?php endif; ?>
-
 
             <!-- الإشعارات -->
 
-            <div class="service-card disabled">
+            <a href="notifications.php" class="service-card">
                 <div class="service-icon">🔔</div>
                 <h3>الإشعارات</h3>
-            </div>
+            </a>
 
 
             <!-- الإعدادات -->
 
-            <div class="service-card disabled">
+            <a href="settings.php" class="service-card">
                 <div class="service-icon">⚙️</div>
                 <h3>الإعدادات</h3>
-            </div>
+            </a>
 
 
             <!-- المساعدة -->
 
-            <div class="service-card disabled">
+            <a href="help.php" class="service-card">
                 <div class="service-icon">❓</div>
                 <h3>المساعدة</h3>
-            </div>
+            </a>
 
 
         </div>
+
+        <?php endif; ?>
+
+        <?php if (!$isSystemAdmin): ?>
 
         <!-- TRANSACTION HISTORY -->
 
@@ -635,7 +787,9 @@ $currency = 'SDG';
             </button>
         </form>
 
-    </main>
+            <?php endif; ?>
+
+</main>
 
 </div>
 

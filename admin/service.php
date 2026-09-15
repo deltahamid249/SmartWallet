@@ -111,10 +111,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (function_exists('logAdminAction')) {
             logAdminAction(
                 'service_status_change',
-                'service_request',
-                $id,
                 'تم تغيير حالة طلب الخدمة رقم #' . $id .
-                ' من "' . $oldLabel . '" إلى "' . $newLabel . '".'
+                ' من "' . $oldLabel . '" إلى "' . $newLabel . '".',
+                'service_request',
+                $id
             );
         }
 
@@ -320,7 +320,7 @@ $csrfToken = csrfToken();
 
         .failed {
             background: #fef2f2;
-            color: #b91c1c;
+            color: #16a34a;
         }
 
         .cancelled {
@@ -350,7 +350,7 @@ $csrfToken = csrfToken();
         .error {
             background: #fef2f2;
             border: 1px solid #fecaca;
-            color: #b91c1c;
+            color: #16a34a;
             border-radius: 12px;
             padding: 14px;
             margin-bottom: 18px;
@@ -449,6 +449,32 @@ $csrfToken = csrfToken();
                 width: 100%;
             }
         }
+    
+        /* Unified financial amount style */
+        .amount,
+        .balance,
+        .balance-number,
+        .balance-value,
+        .balance strong,
+        .value.amount,
+        .money,
+        .money-value {
+            color: #16a34a !important;
+            font-weight: 900;
+        }
+
+        .amount,
+        .money,
+        .money-value {
+            white-space: nowrap;
+        }
+
+        .balance-card,
+        .balance,
+        .money-card {
+            max-width: 100%;
+        }
+
     </style>
 </head>
 
@@ -644,7 +670,7 @@ $csrfToken = csrfToken();
                 <span class="label">المبلغ</span>
 
                 <div class="value amount">
-                    <?= e(formatMoney((float) $request['amount'])) ?>
+                    <?= e(formatMoney($request['amount'])) ?>
                     SDG
                 </div>
             </div>
@@ -653,7 +679,7 @@ $csrfToken = csrfToken();
                 <span class="label">الرسوم</span>
 
                 <div class="value">
-                    <?= e(formatMoney((float) $request['fee'])) ?>
+                    <?= e(formatMoney($request['fee'])) ?>
                     SDG
                 </div>
             </div>
@@ -662,7 +688,7 @@ $csrfToken = csrfToken();
                 <span class="label">الإجمالي</span>
 
                 <div class="value amount">
-                    <?= e(formatMoney((float) $request['total_amount'])) ?>
+                    <?= e(formatMoney($request['total_amount'])) ?>
                     SDG
                 </div>
             </div>
