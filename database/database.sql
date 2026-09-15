@@ -162,6 +162,7 @@ CREATE TABLE `transfers` (
 CREATE TABLE `users` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `full_name` varchar(150) NOT NULL,
+  `username` varchar(100) DEFAULT NULL,
   `phone` varchar(30) NOT NULL,
   `email` varchar(150) DEFAULT NULL,
   `password_hash` varchar(255) NOT NULL,
@@ -171,8 +172,9 @@ CREATE TABLE `users` (
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`),
   UNIQUE KEY `phone` (`phone`),
-  UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `email` (`email`),
+  UNIQUE KEY `uq_users_username` (`username`)
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `wallets` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -211,3 +213,17 @@ CREATE TABLE `withdrawal_requests` (
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS=1;
+
+CREATE TABLE `api_tokens` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint(20) unsigned NOT NULL,
+  `token_hash` char(64) NOT NULL,
+  `expires_at` timestamp NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `last_used_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_api_tokens_hash` (`token_hash`),
+  KEY `idx_api_tokens_user` (`user_id`),
+  KEY `idx_api_tokens_expires` (`expires_at`),
+  CONSTRAINT `fk_api_tokens_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
