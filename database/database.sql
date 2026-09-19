@@ -1,12 +1,31 @@
--- SmartWallet final database schema
--- Generated from the working database
--- Generated: 2026-09-14 21:56:11 UTC
+-- SmartWallet clean database schema
 
 CREATE DATABASE IF NOT EXISTS `smart_wallet` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 USE `smart_wallet`;
 
-SET FOREIGN_KEY_CHECKS=0;
+-- Host: 127.0.0.1    Database: smart_wallet
+-- ------------------------------------------------------
+-- Server version	12.3.3-MariaDB
 
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*M!100616 SET @OLD_NOTE_VERBOSITY=@@NOTE_VERBOSITY, NOTE_VERBOSITY=0 */;
+
+--
+-- Table structure for table `admin_audit_logs`
+--
+
+DROP TABLE IF EXISTS `admin_audit_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `admin_audit_logs` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `admin_id` bigint(20) unsigned DEFAULT NULL,
@@ -21,8 +40,16 @@ CREATE TABLE `admin_audit_logs` (
   KEY `idx_action` (`action`),
   KEY `idx_target` (`target_type`,`target_id`),
   KEY `idx_created_at` (`created_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
+--
+-- Table structure for table `admin_notifications`
+--
+
+DROP TABLE IF EXISTS `admin_notifications`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `admin_notifications` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `title` varchar(150) NOT NULL,
@@ -37,8 +64,16 @@ CREATE TABLE `admin_notifications` (
   KEY `idx_type` (`type`),
   KEY `idx_target` (`target_type`,`target_id`),
   KEY `idx_created_at` (`created_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
+--
+-- Table structure for table `deposit_requests`
+--
+
+DROP TABLE IF EXISTS `deposit_requests`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `deposit_requests` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `reference` varchar(100) DEFAULT NULL,
@@ -67,8 +102,16 @@ CREATE TABLE `deposit_requests` (
   CONSTRAINT `fk_deposit_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
   CONSTRAINT `fk_deposit_wallet` FOREIGN KEY (`wallet_id`) REFERENCES `wallets` (`id`),
   CONSTRAINT `chk_deposit_amount` CHECK (`amount` > 0)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
+--
+-- Table structure for table `login_attempts`
+--
+
+DROP TABLE IF EXISTS `login_attempts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `login_attempts` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `user_id` bigint(20) unsigned DEFAULT NULL,
@@ -82,13 +125,22 @@ CREATE TABLE `login_attempts` (
   KEY `idx_login_phone_created` (`phone`,`created_at`),
   KEY `idx_login_ip_created` (`ip_address`,`created_at`),
   CONSTRAINT `fk_login_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
+--
+-- Table structure for table `payments`
+--
+
+DROP TABLE IF EXISTS `payments`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `payments` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `user_id` bigint(20) unsigned NOT NULL,
   `amount` decimal(18,2) NOT NULL,
   `merchant_name` varchar(150) NOT NULL,
+  `merchant_account` varchar(100) DEFAULT NULL,
   `reference` varchar(100) NOT NULL,
   `status` enum('pending','completed','failed','cancelled') NOT NULL DEFAULT 'completed',
   `created_at` timestamp NULL DEFAULT current_timestamp(),
@@ -97,8 +149,16 @@ CREATE TABLE `payments` (
   KEY `idx_payments_user` (`user_id`),
   KEY `idx_payments_user_created` (`user_id`,`created_at`),
   CONSTRAINT `fk_payment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
+--
+-- Table structure for table `service_requests`
+--
+
+DROP TABLE IF EXISTS `service_requests`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `service_requests` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `user_id` bigint(20) unsigned NOT NULL,
@@ -121,8 +181,16 @@ CREATE TABLE `service_requests` (
   KEY `idx_service_provider` (`provider`),
   KEY `idx_service_status` (`status`),
   KEY `idx_service_created` (`created_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
+--
+-- Table structure for table `transactions`
+--
+
+DROP TABLE IF EXISTS `transactions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `transactions` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `wallet_id` bigint(20) unsigned NOT NULL,
@@ -138,8 +206,16 @@ CREATE TABLE `transactions` (
   KEY `idx_transactions_created` (`created_at`),
   KEY `idx_transactions_wallet_created` (`wallet_id`,`created_at`,`id`),
   CONSTRAINT `fk_transaction_wallet` FOREIGN KEY (`wallet_id`) REFERENCES `wallets` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
+--
+-- Table structure for table `transfers`
+--
+
+DROP TABLE IF EXISTS `transfers`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `transfers` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `sender_wallet_id` bigint(20) unsigned NOT NULL,
@@ -157,8 +233,16 @@ CREATE TABLE `transfers` (
   KEY `idx_transfers_receiver_created` (`receiver_wallet_id`,`created_at`),
   CONSTRAINT `fk_transfer_receiver` FOREIGN KEY (`receiver_wallet_id`) REFERENCES `wallets` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_transfer_sender` FOREIGN KEY (`sender_wallet_id`) REFERENCES `wallets` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
+--
+-- Table structure for table `users`
+--
+
+DROP TABLE IF EXISTS `users`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `users` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `full_name` varchar(150) NOT NULL,
@@ -174,8 +258,16 @@ CREATE TABLE `users` (
   UNIQUE KEY `phone` (`phone`),
   UNIQUE KEY `email` (`email`),
   UNIQUE KEY `uq_users_username` (`username`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
+--
+-- Table structure for table `wallets`
+--
+
+DROP TABLE IF EXISTS `wallets`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `wallets` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `user_id` bigint(20) unsigned NOT NULL,
@@ -186,8 +278,16 @@ CREATE TABLE `wallets` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`),
   CONSTRAINT `fk_wallet_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
+--
+-- Table structure for table `withdrawal_requests`
+--
+
+DROP TABLE IF EXISTS `withdrawal_requests`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `withdrawal_requests` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `reference` varchar(100) DEFAULT NULL,
@@ -210,20 +310,7 @@ CREATE TABLE `withdrawal_requests` (
   KEY `wallet_id` (`wallet_id`),
   KEY `status` (`status`),
   KEY `created_at` (`created_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
-SET FOREIGN_KEY_CHECKS=1;
-
-CREATE TABLE `api_tokens` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `user_id` bigint(20) unsigned NOT NULL,
-  `token_hash` char(64) NOT NULL,
-  `expires_at` timestamp NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `last_used_at` timestamp NULL DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_api_tokens_hash` (`token_hash`),
-  KEY `idx_api_tokens_user` (`user_id`),
-  KEY `idx_api_tokens_expires` (`expires_at`),
-  CONSTRAINT `fk_api_tokens_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+--

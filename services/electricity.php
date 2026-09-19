@@ -186,6 +186,9 @@ $stmt->execute([
 
 $requests = $stmt->fetchAll();
 
+/**
+ * إرجاع اسم مزود الكهرباء بدل الرمز الداخلي.
+ */
 function electricityProviderLabel(
     string $provider,
     array $providers

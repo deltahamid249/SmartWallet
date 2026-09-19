@@ -137,6 +137,9 @@ $adminsActive = (int) $pdo
     ")
     ->fetchColumn();
 
+/**
+ * تحويل رمز إجراء السجل إلى وصف عربي مفهوم.
+ */
 function auditActionLabel(string $action): string
 {
     return match ($action) {
@@ -153,6 +156,9 @@ function auditActionLabel(string $action): string
     };
 }
 
+/**
+ * اختيار CSS class المناسب لنوع إجراء السجل.
+ */
 function auditActionClass(string $action): string
 {
     return match ($action) {

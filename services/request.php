@@ -56,6 +56,9 @@ $serviceNames = [
 
 $serviceName = $serviceNames[$request['service_type']] ?? $request['service_type'];
 
+/**
+ * عرض قيمة تفاصيل الطلب أو شرطة عند كونها فارغة.
+ */
 function detailValue(?string $value): string
 {
     return $value !== null && trim($value) !== '' ? e($value) : '—';

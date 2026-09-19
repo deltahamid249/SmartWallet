@@ -223,6 +223,9 @@ $stmt->execute([
 
 $requests = $stmt->fetchAll();
 
+/**
+ * إرجاع اسم مزود الفاتورة بدل الرمز الداخلي.
+ */
 function billProviderLabel(
     string $provider,
     array $providers

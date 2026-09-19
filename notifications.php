@@ -108,6 +108,9 @@ foreach ($stmt->fetchAll() as $row) {
 usort($items, fn($a, $b) => strcmp((string)$b['created_at'], (string)$a['created_at']));
 $items = array_slice($items, 0, 40);
 
+/**
+ * تحويل حالة الإشعار إلى عنوان عربي للمستخدم.
+ */
 function notificationStatus(string $status): string
 {
     return match ($status) {

@@ -119,12 +119,20 @@ $serviceTypeLabels = [
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
     <title>إدارة الخدمات - المحفظة الذكية</title>
 
     <style>
+
         * {
             box-sizing: border-box;
         }
@@ -263,8 +271,19 @@ $serviceTypeLabels = [
             text-align: right;
         }
 
+        /*
+         * القيم المالية فقط
+         */
+        .money-value {
+            color: #16a34a !important;
+            font-weight: 900 !important;
+            white-space: nowrap;
+            direction: ltr;
+            unicode-bidi: isolate;
+        }
+
         .amount {
-            font-weight: 800;
+            font-weight: 900;
             white-space: nowrap;
         }
 
@@ -315,6 +334,7 @@ $serviceTypeLabels = [
         }
 
         @media (max-width: 700px) {
+
             .container {
                 width: min(100% - 14px, 1200px);
                 margin: 10px auto;
@@ -343,33 +363,9 @@ $serviceTypeLabels = [
                 border-radius: 14px;
             }
         }
-    
-        /* Unified financial amount style */
-        .amount,
-        .balance,
-        .balance-number,
-        .balance-value,
-        .balance strong,
-        .value.amount,
-        .money,
-        .money-value {
-            color: #16a34a !important;
-            font-weight: 900;
-        }
-
-        .amount,
-        .money,
-        .money-value {
-            white-space: nowrap;
-        }
-
-        .balance-card,
-        .balance,
-        .money-card {
-            max-width: 100%;
-        }
 
     </style>
+
 </head>
 
 <body>
@@ -377,13 +373,31 @@ $serviceTypeLabels = [
 <div class="container">
 
     <div class="header">
+
         <h1>إدارة الخدمات</h1>
-        <p>متابعة جميع طلبات الخدمات المقدمة من المستخدمين.</p>
+
+        <p>
+            متابعة جميع طلبات الخدمات المقدمة من المستخدمين.
+        </p>
 
         <div class="actions">
-            <a href="index.php" class="btn btn-primary">لوحة الإدارة</a>
-            <a href="service.php" class="btn btn-secondary">تفاصيل طلب خدمة</a>
+
+            <a
+                href="index.php"
+                class="btn btn-primary"
+            >
+                لوحة الإدارة
+            </a>
+
+            <a
+                href="service.php"
+                class="btn btn-secondary"
+            >
+                تفاصيل طلب خدمة
+            </a>
+
         </div>
+
     </div>
 
     <div class="filters">
@@ -391,40 +405,68 @@ $serviceTypeLabels = [
         <form method="get">
 
             <div>
-                <label for="service_type">نوع الخدمة</label>
 
-                <select name="service_type" id="service_type">
+                <label for="service_type">
+                    نوع الخدمة
+                </label>
+
+                <select
+                    name="service_type"
+                    id="service_type"
+                >
+
                     <?php foreach ($serviceTypeLabels as $value => $label): ?>
+
                         <option
                             value="<?= e($value) ?>"
                             <?= $serviceType === $value ? 'selected' : '' ?>
                         >
                             <?= e($label) ?>
                         </option>
+
                     <?php endforeach; ?>
+
                 </select>
+
             </div>
 
             <div>
-                <label for="status">حالة الطلب</label>
 
-                <select name="status" id="status">
-                    <option value="all" <?= $status === 'all' ? 'selected' : '' ?>>
+                <label for="status">
+                    حالة الطلب
+                </label>
+
+                <select
+                    name="status"
+                    id="status"
+                >
+
+                    <option
+                        value="all"
+                        <?= $status === 'all' ? 'selected' : '' ?>
+                    >
                         كل الحالات
                     </option>
 
                     <?php foreach ($statusLabels as $value => $label): ?>
+
                         <option
                             value="<?= e($value) ?>"
                             <?= $status === $value ? 'selected' : '' ?>
                         >
                             <?= e($label) ?>
                         </option>
+
                     <?php endforeach; ?>
+
                 </select>
+
             </div>
 
-            <button type="submit" class="btn btn-primary">
+            <button
+                type="submit"
+                class="btn btn-primary"
+            >
                 تطبيق الفلتر
             </button>
 
@@ -445,6 +487,7 @@ $serviceTypeLabels = [
             <table>
 
                 <thead>
+
                 <tr>
                     <th>#</th>
                     <th>المستخدم</th>
@@ -457,6 +500,7 @@ $serviceTypeLabels = [
                     <th>التاريخ</th>
                     <th>الإجراء</th>
                 </tr>
+
                 </thead>
 
                 <tbody>
@@ -464,6 +508,7 @@ $serviceTypeLabels = [
                 <?php foreach ($requests as $request): ?>
 
                     <?php
+
                     $serviceName =
                         $serviceLabels[$request['service_type']]
                         ?? $request['service_type'];
@@ -475,6 +520,7 @@ $serviceTypeLabels = [
                     $statusClass =
                         $statusClasses[$request['status']]
                         ?? '';
+
                     ?>
 
                     <tr>
@@ -484,21 +530,27 @@ $serviceTypeLabels = [
                         </td>
 
                         <td>
+
                             <div class="user-name">
                                 <?= e($request['user_name']) ?>
                             </div>
 
                             <?php if (!empty($request['user_phone'])): ?>
+
                                 <small>
                                     <?= e($request['user_phone']) ?>
                                 </small>
+
                             <?php endif; ?>
+
                         </td>
 
                         <td>
+
                             <div class="service-name">
                                 <?= e($serviceName) ?>
                             </div>
+
                         </td>
 
                         <td>
@@ -506,11 +558,19 @@ $serviceTypeLabels = [
                         </td>
 
                         <td class="amount">
-                            <?= e(formatMoney($request['amount'])) ?>
+
+                            <span class="money-value">
+                                <?= e(formatMoney($request['amount'])) ?>
+                            </span>
+
                         </td>
 
                         <td class="amount">
-                            <?= e(formatMoney($request['total_amount'])) ?>
+
+                            <span class="money-value">
+                                <?= e(formatMoney($request['total_amount'])) ?>
+                            </span>
+
                         </td>
 
                         <td class="reference">
@@ -518,9 +578,11 @@ $serviceTypeLabels = [
                         </td>
 
                         <td>
+
                             <span class="status <?= e($statusClass) ?>">
                                 <?= e($statusLabel) ?>
                             </span>
+
                         </td>
 
                         <td>
@@ -528,12 +590,14 @@ $serviceTypeLabels = [
                         </td>
 
                         <td>
+
                             <a
                                 href="service.php?id=<?= (int) $request['id'] ?>"
                                 class="view-link"
                             >
                                 عرض
                             </a>
+
                         </td>
 
                     </tr>

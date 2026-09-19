@@ -10,14 +10,18 @@ global $pdo;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         if (!verifyCsrf($_POST['csrf_token'] ?? null)) {
-            throw new RuntimeException('رمز الحماية غير صالح. أعد تحميل الصفحة وحاول مرة أخرى.');
+            throw new RuntimeException(
+                'رمز الحماية غير صالح. أعد تحميل الصفحة وحاول مرة أخرى.'
+            );
         }
 
         if (!consumeActionToken(
             'deposit_review',
             $_POST['action_token'] ?? null
         )) {
-            throw new RuntimeException('رمز العملية غير صالح أو انتهت صلاحيته. أعد تحميل الصفحة.');
+            throw new RuntimeException(
+                'رمز العملية غير صالح أو انتهت صلاحيته. أعد تحميل الصفحة.'
+            );
         }
 
         $requestId = (int) ($_POST['request_id'] ?? 0);
@@ -164,7 +168,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':wallet_id' => $request['wallet_id'],
             ':amount' => $amount,
             ':reference' => $transactionReference,
-            ':description' => 'اعتماد طلب إيداع ' . ($request['reference'] ?? ('#' . $request['id']))
+            ':description' =>
+                'اعتماد طلب إيداع ' .
+                ($request['reference'] ?? ('#' . $request['id']))
         ]);
 
         $stmt = $pdo->prepare("
@@ -185,12 +191,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
 
         if ($stmt->rowCount() !== 1) {
-            throw new RuntimeException('تعذر تحديث حالة طلب الإيداع.');
+            throw new RuntimeException(
+                'تعذر تحديث حالة طلب الإيداع.'
+            );
         }
 
         logAdminAction(
             'approve_deposit',
-            'تم اعتماد طلب إيداع رقم ' . $requestId . ' وإضافة المبلغ إلى المحفظة.',
+            'تم اعتماد طلب إيداع رقم ' .
+            $requestId .
+            ' وإضافة المبلغ إلى المحفظة.',
             'deposit',
             $requestId
         );
@@ -272,6 +282,9 @@ $flashError = flash('error');
 $reviewToken = actionToken('deposit_review');
 $csrfToken = csrfToken();
 
+/**
+ * عرض حالة طلب الإيداع بصياغة عربية.
+ */
 function depositStatusLabel(string $status): string
 {
     return match ($status) {
@@ -287,7 +300,11 @@ function depositStatusLabel(string $status): string
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>إدارة طلبات الإيداع</title>
 
@@ -316,7 +333,7 @@ function depositStatusLabel(string $status): string
             justify-content: space-between;
             align-items: center;
             gap: 15px;
-            box-shadow: 0 4px 16px rgba(0,0,0,.07);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, .07);
             margin-bottom: 20px;
         }
 
@@ -346,7 +363,7 @@ function depositStatusLabel(string $status): string
 
         .error {
             background: #fff0f0;
-            color: #16a34a;
+            color: #b91c1c;
         }
 
         .stats {
@@ -360,7 +377,7 @@ function depositStatusLabel(string $status): string
             background: #ffffff;
             padding: 20px;
             border-radius: 16px;
-            box-shadow: 0 4px 16px rgba(0,0,0,.06);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, .06);
         }
 
         .stat span {
@@ -378,7 +395,7 @@ function depositStatusLabel(string $status): string
             padding: 15px;
             border-radius: 14px;
             margin-bottom: 20px;
-            box-shadow: 0 4px 16px rgba(0,0,0,.05);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, .05);
         }
 
         .filters a {
@@ -401,7 +418,7 @@ function depositStatusLabel(string $status): string
             background: #ffffff;
             border-radius: 16px;
             overflow-x: auto;
-            box-shadow: 0 4px 16px rgba(0,0,0,.06);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, .06);
         }
 
         table {
@@ -476,12 +493,12 @@ function depositStatusLabel(string $status): string
 
         .approve {
             background: #16a34a;
-            color: white;
+            color: #ffffff;
         }
 
         .reject {
             background: #dc2626;
-            color: white;
+            color: #ffffff;
         }
 
         .empty {
@@ -498,6 +515,15 @@ function depositStatusLabel(string $status): string
             font-weight: bold;
         }
 
+        /* المبالغ المالية */
+        .money-value {
+            color: #16a34a !important;
+            font-weight: 900;
+            white-space: nowrap;
+            direction: ltr;
+            unicode-bidi: isolate;
+        }
+
         @media (max-width: 700px) {
             .stats {
                 grid-template-columns: repeat(2, 1fr);
@@ -508,32 +534,6 @@ function depositStatusLabel(string $status): string
                 flex-direction: column;
             }
         }
-    
-        /* Unified financial amount style */
-        .amount,
-        .balance,
-        .balance-number,
-        .balance-value,
-        .balance strong,
-        .value.amount,
-        .money,
-        .money-value {
-            color: #16a34a !important;
-            font-weight: 900;
-        }
-
-        .amount,
-        .money,
-        .money-value {
-            white-space: nowrap;
-        }
-
-        .balance-card,
-        .balance,
-        .money-card {
-            max-width: 100%;
-        }
-
     </style>
 </head>
 
@@ -566,22 +566,30 @@ function depositStatusLabel(string $status): string
 
         <div class="stat">
             <span>إجمالي الطلبات</span>
-            <strong><?= (int) ($stats['total'] ?? 0) ?></strong>
+            <strong>
+                <?= (int) ($stats['total'] ?? 0) ?>
+            </strong>
         </div>
 
         <div class="stat">
             <span>قيد المراجعة</span>
-            <strong><?= (int) ($stats['pending'] ?? 0) ?></strong>
+            <strong>
+                <?= (int) ($stats['pending'] ?? 0) ?>
+            </strong>
         </div>
 
         <div class="stat">
             <span>المعتمدة</span>
-            <strong><?= (int) ($stats['approved'] ?? 0) ?></strong>
+            <strong>
+                <?= (int) ($stats['approved'] ?? 0) ?>
+            </strong>
         </div>
 
         <div class="stat">
             <span>المرفوضة</span>
-            <strong><?= (int) ($stats['rejected'] ?? 0) ?></strong>
+            <strong>
+                <?= (int) ($stats['rejected'] ?? 0) ?>
+            </strong>
         </div>
 
     </div>
@@ -634,7 +642,10 @@ function depositStatusLabel(string $status): string
 
                         <td>
                             <strong>
-                                <?= e($item['reference'] ?? ('#' . $item['id'])) ?>
+                                <?= e(
+                                    $item['reference']
+                                    ?? ('#' . $item['id'])
+                                ) ?>
                             </strong>
 
                             <br>
@@ -655,8 +666,8 @@ function depositStatusLabel(string $status): string
                         </td>
 
                         <td>
-                            <strong>
-                                <?= formatMoney($item['amount']) ?>
+                            <strong class="money-value">
+                                <?= e(formatMoney($item['amount'])) ?>
                                 SDG
                             </strong>
                         </td>
@@ -676,7 +687,12 @@ function depositStatusLabel(string $status): string
                                 <br>
                                 <a
                                     class="proof-link"
-                                    href="../<?= e(ltrim($item['proof_file'], '/')) ?>"
+                                    href="../<?= e(
+                                        ltrim(
+                                            $item['proof_file'],
+                                            '/'
+                                        )
+                                    ) ?>"
                                     target="_blank"
                                 >
                                     عرض إثبات الدفع
@@ -689,8 +705,14 @@ function depositStatusLabel(string $status): string
                         </td>
 
                         <td>
-                            <span class="status <?= e($item['status']) ?>">
-                                <?= e(depositStatusLabel($item['status'])) ?>
+                            <span
+                                class="status <?= e($item['status']) ?>"
+                            >
+                                <?= e(
+                                    depositStatusLabel(
+                                        $item['status']
+                                    )
+                                ) ?>
                             </span>
                         </td>
 
@@ -736,7 +758,9 @@ function depositStatusLabel(string $status): string
                                             type="submit"
                                             name="action"
                                             value="approve"
-                                            onclick="return confirm('هل أنت متأكد من اعتماد الإيداع وإضافة المبلغ إلى المحفظة؟');"
+                                            onclick="return confirm(
+                                                'هل أنت متأكد من اعتماد الإيداع وإضافة المبلغ إلى المحفظة؟'
+                                            );"
                                         >
                                             اعتماد
                                         </button>
@@ -746,7 +770,9 @@ function depositStatusLabel(string $status): string
                                             type="submit"
                                             name="action"
                                             value="reject"
-                                            onclick="return confirm('هل أنت متأكد من رفض طلب الإيداع؟');"
+                                            onclick="return confirm(
+                                                'هل أنت متأكد من رفض طلب الإيداع؟'
+                                            );"
                                         >
                                             رفض
                                         </button>

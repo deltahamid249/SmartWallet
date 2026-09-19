@@ -40,11 +40,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
 
-
-        /*
-         * مدير النظام الرئيسي ثابت برقم الحساب.
-         * تغيير اسم المستخدم لا يؤثر على الحماية.
-         */
         $protectedAdminId = SYSTEM_ADMIN_ID;
 
         if ($userId === $protectedAdminId) {
@@ -104,6 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($password !== '') {
+
                 if (strlen($password) < 8) {
                     throw new RuntimeException('كلمة المرور يجب أن تكون 8 أحرف على الأقل.');
                 }
@@ -127,7 +123,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':password_hash' => password_hash($password, PASSWORD_DEFAULT),
                     ':user_id' => $userId,
                 ]);
+
             } else {
+
                 $stmt = $pdo->prepare("
                     UPDATE users
                     SET full_name = :full_name,
@@ -198,6 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
 
             foreach ($financialChecks as $label => $sql) {
+
                 $check = $pdo->prepare($sql);
                 $check->execute([':user_id' => $userId]);
 
@@ -211,6 +210,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->beginTransaction();
 
             try {
+
                 $stmt = $pdo->prepare("
                     DELETE FROM users
                     WHERE id = :user_id
@@ -227,10 +227,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
 
                 $pdo->commit();
+
             } catch (Throwable $deleteError) {
+
                 if ($pdo->inTransaction()) {
                     $pdo->rollBack();
                 }
+
                 throw $deleteError;
             }
 
@@ -317,18 +320,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('الدور المحدد غير صالح.');
             }
 
-            /*
-             * حساب النظام الرئيسي ID=9 هو حساب الإدارة الوحيد.
-             */
             if ($newRole === 'admin' && $userId !== SYSTEM_ADMIN_ID) {
                 throw new RuntimeException(
                     'لا يمكن منح صلاحية المدير إلا لحساب النظام الرئيسي.'
                 );
             }
 
-            /*
-             * منع المدير الحالي من إزالة صلاحية المدير عن نفسه.
-             */
             if ($userId === $currentAdminId && $newRole !== 'admin') {
                 throw new RuntimeException(
                     'لا يمكنك إزالة صلاحية المدير من حسابك الحالي.'
@@ -524,6 +521,9 @@ if ((int) $user['wallet_id'] > 0) {
 |--------------------------------------------------------------------------
 */
 
+/**
+ * تحويل أي حالة معروضة في صفحة المستخدم إلى وصف عربي.
+ */
 function statusLabel(string $status): string
 {
     return match ($status) {
@@ -539,6 +539,9 @@ function statusLabel(string $status): string
     };
 }
 
+/**
+ * تحويل نوع الحركة المالية إلى اسم عربي.
+ */
 function transactionTypeLabel(string $type): string
 {
     return match ($type) {
@@ -551,6 +554,9 @@ function transactionTypeLabel(string $type): string
     };
 }
 
+/**
+ * تحديد مظهر الحركة المالية حسب كونها دائنة أو مدينة.
+ */
 function transactionClass(string $type): string
 {
     return match ($type) {
@@ -560,11 +566,17 @@ function transactionClass(string $type): string
     };
 }
 
+/**
+ * تنسيق مبلغ المستخدم مع عملة النظام.
+ */
 function money(float|int|string $amount): string
 {
     return formatMoney($amount) . ' SDG';
 }
 
+/**
+ * تنسيق تاريخ الحركة أو إرجاع شرطة عند عدم وجوده.
+ */
 function dateLabel(?string $date): string
 {
     if (!$date) {
@@ -847,9 +859,19 @@ $isCurrentAdmin = (int) $user['id'] === $currentAdminId;
             word-break: break-word;
         }
 
+        /* جميع القيم المالية باللون الأخضر */
+        .money-value {
+            color: #16a34a !important;
+            font-weight: 900 !important;
+            white-space: nowrap;
+            direction: ltr;
+            unicode-bidi: isolate;
+        }
+
         .balance {
-            color: #15803d;
+            color: #16a34a !important;
             font-size: 21px;
+            font-weight: 900;
         }
 
         .section {
@@ -921,14 +943,10 @@ $isCurrentAdmin = (int) $user['id'] === $currentAdminId;
             color: #991b1b;
         }
 
-        .positive {
-            color: #15803d;
-            font-weight: 900;
-        }
-
+        .positive,
         .negative {
-            color: #16a34a;
-            font-weight: 900;
+            color: #16a34a !important;
+            font-weight: 900 !important;
         }
 
         .empty {
@@ -989,7 +1007,6 @@ $isCurrentAdmin = (int) $user['id'] === $currentAdminId;
             }
         }
 
-    
         /* Unified financial amount style */
         .amount,
         .balance,
@@ -1194,7 +1211,7 @@ $isCurrentAdmin = (int) $user['id'] === $currentAdminId;
                     الرصيد الحالي
                 </div>
 
-                <div class="info-value balance">
+                <div class="info-value balance money-value">
                     <?= e(money($user['balance'])) ?>
                 </div>
 
@@ -1395,7 +1412,6 @@ $isCurrentAdmin = (int) $user['id'] === $currentAdminId;
                     <thead>
 
                     <tr>
-
                         <th>المرجع</th>
                         <th>المبلغ</th>
                         <th>البنك</th>
@@ -1403,7 +1419,6 @@ $isCurrentAdmin = (int) $user['id'] === $currentAdminId;
                         <th>مرجع البنك</th>
                         <th>الحالة</th>
                         <th>التاريخ</th>
-
                     </tr>
 
                     </thead>
@@ -1420,7 +1435,7 @@ $isCurrentAdmin = (int) $user['id'] === $currentAdminId;
                                 ) ?>
                             </td>
 
-                            <td class="positive">
+                            <td class="money-value">
                                 <?= e(
                                     money($deposit['amount'])
                                 ) ?>
@@ -1501,7 +1516,6 @@ $isCurrentAdmin = (int) $user['id'] === $currentAdminId;
                     <thead>
 
                     <tr>
-
                         <th>المرجع</th>
                         <th>المبلغ</th>
                         <th>المستلم</th>
@@ -1509,7 +1523,6 @@ $isCurrentAdmin = (int) $user['id'] === $currentAdminId;
                         <th>طريقة السحب</th>
                         <th>الحالة</th>
                         <th>التاريخ</th>
-
                     </tr>
 
                     </thead>
@@ -1526,7 +1539,7 @@ $isCurrentAdmin = (int) $user['id'] === $currentAdminId;
                                 ) ?>
                             </td>
 
-                            <td class="negative">
+                            <td class="money-value">
                                 <?= e(
                                     money($withdrawal['amount'])
                                 ) ?>
@@ -1611,7 +1624,6 @@ $isCurrentAdmin = (int) $user['id'] === $currentAdminId;
                     <thead>
 
                     <tr>
-
                         <th>#</th>
                         <th>نوع العملية</th>
                         <th>المبلغ</th>
@@ -1619,7 +1631,6 @@ $isCurrentAdmin = (int) $user['id'] === $currentAdminId;
                         <th>الوصف</th>
                         <th>الحالة</th>
                         <th>التاريخ</th>
-
                     </tr>
 
                     </thead>
@@ -1642,13 +1653,7 @@ $isCurrentAdmin = (int) $user['id'] === $currentAdminId;
                                 ) ?>
                             </td>
 
-                            <td
-                                class="<?= e(
-                                    transactionClass(
-                                        $transaction['type']
-                                    )
-                                ) ?>"
-                            >
+                            <td class="money-value">
                                 <?= e(
                                     money(
                                         $transaction['amount']

@@ -125,6 +125,9 @@ $pendingCount = (int) $pdo
     ")
     ->fetchColumn();
 
+/**
+ * تحويل حالة التحويل إلى وصف عربي في قائمة الإدارة.
+ */
 function transferStatusLabel(string $status): string
 {
     return match ($status) {
@@ -136,6 +139,9 @@ function transferStatusLabel(string $status): string
     };
 }
 
+/**
+ * اختيار CSS class المناسب لحالة التحويل في قائمة الإدارة.
+ */
 function transferStatusClass(string $status): string
 {
     return match ($status) {
@@ -237,6 +243,15 @@ function transferStatusClass(string $status): string
         .stat-value {
             font-size: 22px;
             font-weight: 900;
+        }
+
+        /* جميع القيم المالية باللون الأخضر */
+        .money-value {
+            color: #16a34a !important;
+            font-weight: 900 !important;
+            white-space: nowrap;
+            direction: ltr;
+            unicode-bidi: isolate;
         }
 
         .filters {
@@ -417,7 +432,6 @@ function transferStatusClass(string $status): string
             }
         }
 
-    
         /* Unified financial amount style */
         .amount,
         .balance,
@@ -494,7 +508,7 @@ function transferStatusClass(string $status): string
                 إجمالي المبالغ
             </div>
 
-            <div class="stat-value">
+            <div class="stat-value money-value">
                 <?= formatMoney($totalAmount) ?> SDG
             </div>
         </div>
@@ -504,7 +518,7 @@ function transferStatusClass(string $status): string
                 التحويلات المكتملة
             </div>
 
-            <div class="stat-value">
+            <div class="stat-value money-value">
                 <?= formatMoney($completedAmount) ?> SDG
             </div>
         </div>
@@ -514,7 +528,7 @@ function transferStatusClass(string $status): string
                 المبالغ المعلقة
             </div>
 
-            <div class="stat-value">
+            <div class="stat-value money-value">
                 <?= formatMoney($pendingAmount) ?> SDG
             </div>
         </div>
@@ -662,7 +676,7 @@ function transferStatusClass(string $status): string
 
                             </td>
 
-                            <td class="amount">
+                            <td class="amount money-value">
 
                                 <?= formatMoney($transfer['amount']) ?>
 

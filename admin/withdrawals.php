@@ -280,6 +280,9 @@ $flashError = flash('error');
 $reviewToken = actionToken('withdrawal_review');
 $csrfToken = csrfToken();
 
+/**
+ * عرض حالة طلب السحب بصياغة عربية.
+ */
 function statusLabel(string $status): string
 {
     return match ($status) {

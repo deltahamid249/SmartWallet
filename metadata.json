@@ -1,6 +1,6 @@
 {
-  "name": "SmartWallet",
-  "description": "A smart electronic wallet for transfers, deposits, withdrawals, and utility service payments.",
+  "name": "Smart Wallet",
+  "description": "Smart Wallet (المحفظة الذكية) digital financial wallet with SDG balance, transfers, deposits, withdrawals, utility services, and transaction management.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

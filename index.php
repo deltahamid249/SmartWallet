@@ -83,7 +83,7 @@ if ($isSystemAdmin) {
 
             .admin-only {
                 width: 100%;
-                max-width: 560px;
+                max-width: 600px;
                 min-height: 100vh;
                 margin: 0 auto;
                 display: flex;
@@ -186,12 +186,28 @@ if ($isSystemAdmin) {
             color: inherit;
         }
 
+        /* حاوية متجاوبة بالكامل لجميع الشاشات (هاتف، تابلت، لابتوب) */
         .app {
             width: 100%;
-            max-width: 560px;
+            max-width: 100%;
             margin: 0 auto;
             min-height: 100vh;
             background: #f4f6f8;
+            padding: 0;
+        }
+
+        @media (min-width: 768px) {
+            .app {
+                max-width: 750px;
+                padding: 15px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .app {
+                max-width: 1100px;
+                padding: 25px;
+            }
         }
 
         /* =========================
@@ -203,6 +219,12 @@ if ($isSystemAdmin) {
             color: #ffffff;
             padding: 22px 18px 26px;
             border-radius: 0 0 24px 24px;
+        }
+
+        @media (min-width: 1024px) {
+            .header {
+                border-radius: 24px;
+            }
         }
 
         .header-top {
@@ -292,7 +314,7 @@ if ($isSystemAdmin) {
             font-size: 34px;
             font-weight: 900;
             line-height: 1.1;
-            color: #111111;
+            color: #16a34a !important;
         }
 
         .balance-currency {
@@ -324,13 +346,27 @@ if ($isSystemAdmin) {
         }
 
         /* =========================
-           SERVICES GRID
+           SERVICES GRID (Responsive)
         ========================== */
 
         .services-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 12px;
+        }
+
+        @media (min-width: 768px) {
+            .services-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 16px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .services-grid {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 20px;
+            }
         }
 
         .service-card {
@@ -381,14 +417,6 @@ if ($isSystemAdmin) {
             font-weight: 900;
             color: #111111;
             line-height: 1.35;
-        }
-
-        .service-card.disabled {
-            opacity: 0.55;
-        }
-
-        .service-card.disabled .service-icon {
-            background: #eeeeee;
         }
 
         /* =========================
@@ -473,61 +501,15 @@ if ($isSystemAdmin) {
             transform: scale(0.98);
         }
 
-        /* =========================
-           MOBILE
-        ========================== */
-
-        @media (max-width: 380px) {
-
-            .services-grid {
-                gap: 8px;
-            }
-
-            .service-card {
-            width: 100%;
-            min-width: 0;
-                height: 120px;
-                padding: 9px 5px;
-            }
-
-            .service-icon {
-                width: 52px;
-                height: 52px;
-                font-size: 28px;
-            }
-
-            .service-card h3 {
-                font-size: 12px;
-            }
-
-            .balance-number {
-                font-size: 30px;
-            }
-        }
-    
         /* Unified financial amount style */
         .amount,
         .balance,
         .balance-number,
         .balance-value,
-        .balance strong,
-        .value.amount,
         .money,
         .money-value {
             color: #16a34a !important;
             font-weight: 900;
-        }
-
-        .amount,
-        .money,
-        .money-value {
-            white-space: nowrap;
-        }
-
-        .balance-card,
-        .balance,
-        .money-card {
-            max-width: 100%;
         }
 
     </style>
@@ -608,110 +590,51 @@ if ($isSystemAdmin) {
             <!-- إضافة الأموال -->
 
             <a href="deposit.php" class="service-card">
-
-                <div class="service-icon">
-                    💵
-                </div>
-
-                <h3>
-                    إضافة الأموال
-                </h3>
-
+                <div class="service-icon">💵</div>
+                <h3>إضافة الأموال</h3>
             </a>
-
 
             <!-- سحب الأموال -->
 
             <a href="withdraw.php" class="service-card">
-
-                <div class="service-icon">
-                    💴
-                </div>
-
-                <h3>
-                    سحب الأموال
-                </h3>
-
+                <div class="service-icon">💴</div>
+                <h3>سحب الأموال</h3>
             </a>
-
 
             <!-- إرسال الأموال -->
 
             <a href="transfer.php" class="service-card">
-
-                <div class="service-icon">
-                    📤
-                </div>
-
-                <h3>
-                    إرسال الأموال
-                </h3>
-
+                <div class="service-icon">📤</div>
+                <h3>إرسال الأموال</h3>
             </a>
-
 
             <!-- سجل العمليات -->
 
             <a href="transactions.php" class="service-card">
-
-                <div class="service-icon">
-                    📊
-                </div>
-
-                <h3>
-                    سجل العمليات
-                </h3>
-
+                <div class="service-icon">📊</div>
+                <h3>سجل العمليات</h3>
             </a>
-
 
             <!-- الملف الشخصي -->
 
             <a href="profile.php" class="service-card">
-
-                <div class="service-icon">
-                    👤
-                </div>
-
-                <h3>
-                    الملف الشخصي
-                </h3>
-
+                <div class="service-icon">👤</div>
+                <h3>الملف الشخصي</h3>
             </a>
-
 
             <!-- المدفوعات -->
 
             <a href="payments.php" class="service-card">
-
-                <div class="service-icon">
-                    🧾
-                </div>
-
-                <h3>
-                    المدفوعات
-                </h3>
-
+                <div class="service-icon">🧾</div>
+                <h3>المدفوعات</h3>
             </a>
-
-
-
-
 
             <!-- الخدمات -->
 
             <a href="services/index.php" class="service-card">
-
-                <div class="service-icon">
-                    🛠️
-                </div>
-
-                <h3>
-                    الخدمات
-                </h3>
-
+                <div class="service-icon">🛠️</div>
+                <h3>الخدمات</h3>
             </a>
-
 
             <!-- الإشعارات -->
 
@@ -720,7 +643,6 @@ if ($isSystemAdmin) {
                 <h3>الإشعارات</h3>
             </a>
 
-
             <!-- الإعدادات -->
 
             <a href="settings.php" class="service-card">
@@ -728,14 +650,12 @@ if ($isSystemAdmin) {
                 <h3>الإعدادات</h3>
             </a>
 
-
             <!-- المساعدة -->
 
             <a href="help.php" class="service-card">
                 <div class="service-icon">❓</div>
                 <h3>المساعدة</h3>
             </a>
-
 
         </div>
 
@@ -754,15 +674,8 @@ if ($isSystemAdmin) {
                 </div>
 
                 <div class="history-text">
-
-                    <h3>
-                        سجل العمليات
-                    </h3>
-
-                    <p>
-                        عرض جميع عمليات المحفظة
-                    </p>
-
+                    <h3>سجل العمليات</h3>
+                    <p>عرض جميع عمليات المحفظة</p>
                 </div>
 
             </div>
@@ -780,18 +693,18 @@ if ($isSystemAdmin) {
             <input type="hidden" name="_csrf" value="<?= e(csrfToken()) ?>">
             <button
                 type="submit"
-                style="width:100%;border:0;background:transparent;
-                font:inherit;color:inherit;cursor:pointer;"
+                style="width:100%;border:0;background:transparent;font:inherit;color:inherit;cursor:pointer;"
             >
                 🚪 تسجيل الخروج
             </button>
         </form>
 
-            <?php endif; ?>
+        <?php endif; ?>
 
-</main>
+    </main>
 
 </div>
 
 </body>
 </html>
+

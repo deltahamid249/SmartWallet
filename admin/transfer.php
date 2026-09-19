@@ -63,6 +63,9 @@ if (!$transfer) {
     exit('التحويل غير موجود.');
 }
 
+/**
+ * تحويل حالة التحويل إلى وصف عربي.
+ */
 function transferStatusLabel(string $status): string
 {
     return match ($status) {
@@ -74,6 +77,9 @@ function transferStatusLabel(string $status): string
     };
 }
 
+/**
+ * اختيار CSS class المناسب لحالة التحويل.
+ */
 function transferStatusClass(string $status): string
 {
     return match ($status) {
@@ -253,6 +259,19 @@ function transferStatusClass(string $status): string
             word-break: break-word;
         }
 
+        /* جميع القيم المالية */
+        .money-value {
+            color: #16a34a !important;
+            font-weight: 900 !important;
+            white-space: nowrap;
+            direction: ltr;
+            unicode-bidi: isolate;
+        }
+
+        .amount.money-value {
+            font-size: 34px;
+        }
+
         .note {
             background: #f9fafb;
             border-radius: 12px;
@@ -275,11 +294,11 @@ function transferStatusClass(string $status): string
                 text-align: right;
             }
 
-            .amount {
+            .amount.money-value {
                 font-size: 28px;
             }
         }
-    
+
         /* Unified financial amount style */
         .amount,
         .balance,
@@ -304,7 +323,6 @@ function transferStatusClass(string $status): string
         .money-card {
             max-width: 100%;
         }
-
     </style>
 </head>
 
@@ -332,7 +350,7 @@ function transferStatusClass(string $status): string
 
         <h2>عملية التحويل رقم #<?= (int) $transfer['id'] ?></h2>
 
-        <div class="amount">
+        <div class="amount money-value">
             <?= formatMoney($transfer['amount']) ?> SDG
         </div>
 
@@ -428,7 +446,7 @@ function transferStatusClass(string $status): string
 
         <div class="row">
             <span class="label">المبلغ</span>
-            <span class="value">
+            <span class="value money-value">
                 <?= formatMoney($transfer['amount']) ?> SDG
             </span>
         </div>

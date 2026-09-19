@@ -86,6 +86,9 @@ $statsStmt = $pdo->query("
 
 $stats = $statsStmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
+/**
+ * عرض حالة حساب المستخدم بالعربية.
+ */
 function userStatusLabel(string $status): string
 {
     return match ($status) {
@@ -95,6 +98,9 @@ function userStatusLabel(string $status): string
     };
 }
 
+/**
+ * عرض دور المستخدم بالعربية.
+ */
 function userRoleLabel(string $role): string
 {
     return match ($role) {

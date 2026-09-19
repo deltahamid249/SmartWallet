@@ -184,6 +184,9 @@ $serviceLabel = $serviceLabels[$serviceType] ?? $serviceType;
 $statusLabel = $statusLabels[$status] ?? $status;
 $statusClass = $statusClasses[$status] ?? 'pending';
 
+/**
+ * تجهيز قيمة تفاصيل الخدمة للإظهار مع قيمة بديلة للفراغ.
+ */
 function adminServiceValue(mixed $value): string
 {
     return e(
@@ -204,6 +207,7 @@ $csrfToken = csrfToken();
 
 <head>
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -293,6 +297,29 @@ $csrfToken = csrfToken();
 
         .amount {
             font-size: 22px;
+        }
+
+        /*
+         * جميع القيم المالية باللون الأخضر
+         */
+        .money-value,
+        .amount,
+        .balance,
+        .balance-number,
+        .balance-value,
+        .balance strong,
+        .value.amount,
+        .money {
+            color: #16a34a !important;
+            font-weight: 900 !important;
+        }
+
+        .money-value,
+        .amount,
+        .money {
+            white-space: nowrap;
+            direction: ltr;
+            unicode-bidi: isolate;
         }
 
         .status {
@@ -414,6 +441,12 @@ $csrfToken = csrfToken();
             line-height: 1.7;
         }
 
+        .balance-card,
+        .balance,
+        .money-card {
+            max-width: 100%;
+        }
+
         @media (max-width: 650px) {
             .container {
                 width: min(100% - 20px, 1050px);
@@ -449,32 +482,6 @@ $csrfToken = csrfToken();
                 width: 100%;
             }
         }
-    
-        /* Unified financial amount style */
-        .amount,
-        .balance,
-        .balance-number,
-        .balance-value,
-        .balance strong,
-        .value.amount,
-        .money,
-        .money-value {
-            color: #16a34a !important;
-            font-weight: 900;
-        }
-
-        .amount,
-        .money,
-        .money-value {
-            white-space: nowrap;
-        }
-
-        .balance-card,
-        .balance,
-        .money-card {
-            max-width: 100%;
-        }
-
     </style>
 </head>
 
@@ -669,7 +676,7 @@ $csrfToken = csrfToken();
             <div class="item">
                 <span class="label">المبلغ</span>
 
-                <div class="value amount">
+                <div class="value money-value">
                     <?= e(formatMoney($request['amount'])) ?>
                     SDG
                 </div>
@@ -678,7 +685,7 @@ $csrfToken = csrfToken();
             <div class="item">
                 <span class="label">الرسوم</span>
 
-                <div class="value">
+                <div class="value money-value">
                     <?= e(formatMoney($request['fee'])) ?>
                     SDG
                 </div>
@@ -687,7 +694,7 @@ $csrfToken = csrfToken();
             <div class="item">
                 <span class="label">الإجمالي</span>
 
-                <div class="value amount">
+                <div class="value money-value">
                     <?= e(formatMoney($request['total_amount'])) ?>
                     SDG
                 </div>

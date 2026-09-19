@@ -205,6 +205,9 @@ $stmt->execute([
 
 $requests = $stmt->fetchAll();
 
+/**
+ * إرجاع اسم مزود الإنترنت بدل الرمز الداخلي.
+ */
 function internetProviderLabel(
     string $provider,
     array $providers

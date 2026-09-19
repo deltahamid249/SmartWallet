@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
 
+/**
+ * المصادقة والجلسات.
+ *
+ * يجهز هذا الملف اتصال قاعدة البيانات، يبدأ جلسة المستخدم، ويتحقق من
+ * الصلاحيات قبل السماح بفتح الصفحات المحمية أو صفحات الإدارة.
+ */
+
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/functions.php';
 
@@ -39,7 +46,6 @@ function currentUserId(): ?int
 
 /**
  * رقم حساب مدير النظام الرئيسي.
- * هذا الرقم ثابت ولا يتأثر بتغيير اسم المستخدم.
  */
 const SYSTEM_ADMIN_ID = 9;
 
@@ -83,13 +89,186 @@ function isAdmin(): bool
 }
 
 /**
+ * شريط التنقل الموحد للصفحات المحمية.
+ *
+ * يتم حقنه تلقائيًا في نهاية الصفحة:
+ * - زر رجوع.
+ * - زر الرئيسية.
+ * - زر تسجيل الخروج.
+ */
+function registerGlobalNavigation(): void
+{
+    if (!isLoggedIn()) {
+        return;
+    }
+
+    $scriptName = (string) ($_SERVER['SCRIPT_NAME'] ?? '');
+
+    /*
+     * لا نضيف شريط HTML إلى API.
+     */
+    if (str_contains($scriptName, '/api/')) {
+        return;
+    }
+
+    register_shutdown_function(
+        static function (): void {
+            if (!isLoggedIn()) {
+                return;
+            }
+
+            $scriptName = (string) ($_SERVER['SCRIPT_NAME'] ?? '');
+
+            if (str_contains($scriptName, '/api/')) {
+                return;
+            }
+
+            echo str_replace(
+                [
+                    '__SMART_WALLET_HOME_URL__',
+                    '__SMART_WALLET_LOGOUT_URL__',
+                ],
+                [
+                    e(appUrl('/index.php')),
+                    e(appUrl('/logout.php')),
+                ],
+                <<<'HTML'
+<style id="smart-wallet-global-navigation">
+    .sw-global-navigation {
+        position: fixed;
+        right: 14px;
+        left: 14px;
+        bottom: 14px;
+        z-index: 99999;
+
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 9px;
+
+        max-width: 620px;
+        margin: 0 auto;
+
+        padding: 9px;
+
+        background: rgba(255, 255, 255, 0.97);
+        border: 1px solid #dbe3ef;
+        border-radius: 18px;
+
+        box-shadow:
+            0 12px 35px rgba(15, 23, 42, 0.16);
+
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+    }
+
+    .sw-global-navigation a,
+    .sw-global-navigation button {
+        min-height: 46px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+
+        border: 0;
+        border-radius: 12px;
+
+        text-decoration: none;
+
+        font-family: Arial, Tahoma, sans-serif;
+        font-size: 14px;
+        font-weight: 800;
+
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .sw-nav-back {
+        background: #eef4ff;
+        color: #0f3d91;
+    }
+
+    .sw-nav-home {
+        background: #f1f5f9;
+        color: #111827;
+    }
+
+    .sw-nav-logout {
+        background: #fff1f2;
+        color: #b91c1c;
+    }
+
+    .sw-global-navigation a:active,
+    .sw-global-navigation button:active {
+        transform: scale(0.97);
+    }
+
+    @media (min-width: 700px) {
+        .sw-global-navigation {
+            right: 20px;
+            left: auto;
+            width: 420px;
+        }
+    }
+
+    /*
+     * مساحة أسفل الصفحة حتى لا يغطي شريط التنقل
+     * آخر محتوى في الصفحات الطويلة.
+     */
+    body {
+        padding-bottom: 88px !important;
+    }
+</style>
+
+<nav
+    class="sw-global-navigation"
+    aria-label="التنقل العام"
+>
+    <button
+        type="button"
+        class="sw-nav-back"
+        onclick="smartWalletGoBack()"
+    >
+        ← رجوع
+    </button>
+
+    <a
+        href="__SMART_WALLET_HOME_URL__"
+        class="sw-nav-home"
+    >
+        🏠 الرئيسية
+    </a>
+
+    <a
+        href="__SMART_WALLET_LOGOUT_URL__"
+        class="sw-nav-logout"
+    >
+        🚪 تسجيل الخروج
+    </a>
+</nav>
+
+<script>
+function smartWalletGoBack() {
+    if (window.history.length > 1) {
+        window.history.back();
+    } else {
+        window.location.href = '__SMART_WALLET_HOME_URL__';
+    }
+}
+</script>
+HTML
+            );
+        }
+    );
+}
+
+/**
  * إجبار المستخدم على تسجيل الدخول.
  */
 function requireLogin(): void
 {
     if (!isLoggedIn()) {
-        header('Location: /login.php');
-        exit;
+        redirectTo('/login.php');
     }
 
     global $pdo;
@@ -106,9 +285,11 @@ function requireLogin(): void
 
     if ($status !== 'active') {
         logoutUser();
-        header('Location: /login.php');
-        exit;
+
+        redirectTo('/login.php');
     }
+
+    registerGlobalNavigation();
 }
 
 /**
@@ -117,8 +298,7 @@ function requireLogin(): void
 function requireAdmin(): void
 {
     if (!isLoggedIn()) {
-        header('Location: /login.php');
-        exit;
+        redirectTo('/login.php');
     }
 
     if (!isAdmin()) {
@@ -169,13 +349,15 @@ function requireAdmin(): void
     <div class="box">
         <h1>غير مصرح</h1>
         <p>ليس لديك صلاحية للوصول إلى لوحة الإدارة.</p>
-        <a href="/">العودة للرئيسية</a>
+        <a href="' . e(appUrl('/index.php')) . '">العودة للرئيسية</a>
     </div>
 </body>
 </html>';
 
         exit;
     }
+
+    registerGlobalNavigation();
 }
 
 /**
@@ -184,6 +366,7 @@ function requireAdmin(): void
 function loginUser(int $userId): void
 {
     session_regenerate_id(true);
+
     $_SESSION['user_id'] = $userId;
 }
 

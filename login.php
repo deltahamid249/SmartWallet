@@ -1,120 +1,72 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/auth.php';
 
 if (isLoggedIn()) {
-    header('Location: index.php');
-    exit;
+    redirectTo('/index.php');
 }
 
 $error = '';
-$phone = '';
-$ipAddress = clientIp();
+$loginValue = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!verifyCsrf($_POST['_csrf'] ?? null)) {
-        $error = 'انتهت صلاحية النموذج. أعد تحميل الصفحة وحاول مرة أخرى.';
-    }
+    $loginValue = trim((string) ($_POST['login'] ?? ''));
+    $password = (string) ($_POST['password'] ?? '');
 
-    $phone = trim((string)($_POST['phone'] ?? ''));
-    $password = (string)($_POST['password'] ?? '');
-
-    if ($error === '' && ($phone === '' || $password === '')) {
-        $error = 'يرجى إدخال رقم الهاتف وكلمة المرور.';
-    } elseif ($error === '') {
+    if ($loginValue === '' || $password === '') {
+        $error = 'يرجى إدخال رقم الهاتف أو البريد الإلكتروني وكلمة المرور.';
+    } else {
         try {
-            $rateStmt = $pdo->prepare(
-                'SELECT COUNT(*)
-                 FROM login_attempts
-                 WHERE success = 0
-                   AND created_at >= (CURRENT_TIMESTAMP - INTERVAL 15 MINUTE)
-                   AND (phone = :phone OR ip_address = :ip_address)'
-            );
-
-            $rateStmt->execute([
-                ':phone' => $phone,
-                ':ip_address' => $ipAddress,
-            ]);
-
-            if ((int)$rateStmt->fetchColumn() >= 5) {
-                throw new RuntimeException(
-                    'تم تجاوز عدد محاولات تسجيل الدخول. حاول بعد 15 دقيقة.'
-                );
-            }
-
-            $stmt = $pdo->prepare(
-                'SELECT id, password_hash, status
-                 FROM users
-                 WHERE phone = :phone
-                 LIMIT 1'
-            );
+            $stmt = $pdo->prepare("
+                SELECT
+                    id,
+                    password_hash,
+                    status
+                FROM users
+                WHERE phone = :phone
+                   OR email = :email
+                LIMIT 1
+            ");
 
             $stmt->execute([
-                ':phone' => $phone,
+                ':phone' => $loginValue,
+                ':email' => $loginValue,
             ]);
 
-            $user = $stmt->fetch();
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if (!$user || !password_verify($password, $user['password_hash'])) {
-                $error = 'رقم الهاتف أو كلمة المرور غير صحيحة.';
-            } elseif (($user['status'] ?? '') !== 'active') {
-                $error = 'هذا الحساب غير نشط.';
+            if (!$user) {
+                $error = 'بيانات تسجيل الدخول غير صحيحة.';
+            } elseif ($user['status'] !== 'active') {
+                $error = 'هذا الحساب غير نشط حاليًا.';
+            } elseif (!password_verify($password, $user['password_hash'])) {
+                $error = 'بيانات تسجيل الدخول غير صحيحة.';
             } else {
-                loginUser((int)$user['id']);
+                loginUser((int) $user['id']);
 
-                $attempt = $pdo->prepare(
-                    'INSERT INTO login_attempts
-                    (user_id, phone, ip_address, success)
-                    VALUES
-                    (:user_id, :phone, :ip_address, 1)'
-                );
-
-                $attempt->execute([
-                    ':user_id' => (int)$user['id'],
-                    ':phone' => $phone,
-                    ':ip_address' => $ipAddress,
-                ]);
-
-                header('Location: index.php');
-                exit;
+                redirectTo('/index.php');
             }
-
-            $attempt = $pdo->prepare(
-                'INSERT INTO login_attempts
-                (user_id, phone, ip_address, success)
-                VALUES
-                (:user_id, :phone, :ip_address, 0)'
+        } catch (Throwable $e) {
+            error_log(
+                'Smart Wallet Login Error: '
+                . $e->getMessage()
+                . ' in '
+                . $e->getFile()
+                . ':'
+                . $e->getLine()
             );
 
-            $attempt->execute([
-                ':user_id' => $user ? (int)$user['id'] : null,
-                ':phone' => $phone,
-                ':ip_address' => $ipAddress,
-            ]);
-
-        } catch (Throwable $e) {
-            error_log($e->getMessage());
-
-            if ($e instanceof RuntimeException) {
-                $error = $e->getMessage();
-            } else {
-                $error = 'حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.';
-            }
+            $error = 'حدث خطأ أثناء تسجيل الدخول. حاول مرة أخرى.';
         }
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>تسجيل الدخول - المحفظة الذكية</title>
 
@@ -127,117 +79,200 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin: 0;
             min-height: 100vh;
             font-family: Arial, Tahoma, sans-serif;
-            background: #f4f6f8;
-            color: #111111;
+            background:
+                linear-gradient(
+                    135deg,
+                    #eef4ff 0%,
+                    #f8fafc 50%,
+                    #eaf1ff 100%
+                );
+            color: #111827;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
         }
 
-        .container {
+        .login-wrapper {
             width: 100%;
-            max-width: 460px;
+            max-width: 430px;
         }
 
-        .card {
+        .login-card {
             background: #ffffff;
-            padding: 30px;
-            border-radius: 18px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+            border-radius: 24px;
+            padding: 32px 24px;
+            box-shadow: 0 15px 45px rgba(15, 23, 42, 0.12);
+            border: 1px solid #e5e7eb;
         }
 
-        h1 {
+        .brand {
             text-align: center;
-            margin: 0;
-            font-size: 26px;
+            margin-bottom: 24px;
+        }
+
+        .logo {
+            width: 116px;
+            height: 94px;
+            margin: 0 auto 16px;
+            border-radius: 20px;
+            background: linear-gradient(145deg, #0f3d91, #1769d2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: #ffffff;
+            box-shadow:
+                0 10px 25px rgba(15, 61, 145, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.25);
+            position: relative;
+            overflow: hidden;
+            padding: 0 8px;
+        }
+
+        .logo::before {
+            content: "";
+            position: absolute;
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.14);
+            top: -65px;
+            right: -55px;
+        }
+
+        .logo::after {
+            content: "";
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.10);
+            bottom: -55px;
+            left: -45px;
+        }
+
+        .logo-main {
+            position: relative;
+            z-index: 2;
+            font-size: 21px;
             font-weight: 900;
+            line-height: 1.2;
+            white-space: nowrap;
         }
 
-        .subtitle {
-            text-align: center;
-            color: #222222;
-            margin: 10px 0 25px;
+        .logo-sub {
+            position: relative;
+            z-index: 2;
+            margin-top: 2px;
             font-size: 14px;
+            font-weight: 700;
+            white-space: nowrap;
         }
 
-        label {
-            display: block;
-            margin: 15px 0 7px;
+        .brand h1 {
+            margin: 0;
+            font-size: 27px;
+            color: #0f172a;
             font-weight: 800;
-            color: #111111;
         }
 
-        input {
+        .brand p {
+            margin: 8px 0 0;
+            font-size: 14px;
+            color: #475569;
+        }
+
+        .form-group {
+            margin-bottom: 17px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .form-group input {
             width: 100%;
-            padding: 14px;
-            border: 1px solid #d6dbe3;
-            border-radius: 9px;
+            height: 52px;
+            border: 1px solid #d1d5db;
+            border-radius: 13px;
+            padding: 0 15px;
             font-size: 16px;
-            color: #111111;
+            color: #111827;
             background: #ffffff;
             outline: none;
+            transition: 0.2s ease;
         }
 
-        input:focus {
-            border-color: #1565c0;
+        .form-group input:focus {
+            border-color: #1769d2;
+            box-shadow: 0 0 0 4px rgba(23, 105, 210, 0.10);
         }
 
-        button {
+        .form-group input::placeholder {
+            color: #6b7280;
+        }
+
+        .error {
+            background: #fff1f2;
+            border: 1px solid #fecdd3;
+            color: #b91c1c;
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 17px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .login-button {
             width: 100%;
-            margin-top: 24px;
-            padding: 14px;
+            height: 54px;
             border: 0;
-            border-radius: 9px;
-            background: #1565c0;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #0f3d91, #1769d2);
             color: #ffffff;
             font-size: 17px;
             font-weight: 800;
             cursor: pointer;
+            box-shadow: 0 8px 18px rgba(15, 61, 145, 0.20);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
         }
 
-        button:active {
-            transform: scale(0.99);
+        .login-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 22px rgba(15, 61, 145, 0.25);
         }
 
-        .error {
-            background: #ffebee;
-            color: #b71c1c;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            font-weight: 700;
-            line-height: 1.6;
+        .login-button:active {
+            transform: translateY(0);
         }
 
-        .register-box {
-            margin-top: 24px;
-            padding-top: 20px;
-            border-top: 1px solid #e1e5ea;
+        .register-link {
             text-align: center;
-        }
-
-        .register-text {
-            margin: 0 0 12px;
+            margin-top: 20px;
             font-size: 14px;
-            color: #111111;
+            color: #475569;
         }
 
-        .register-button {
-            display: block;
-            width: 100%;
-            padding: 13px;
-            border: 2px solid #1565c0;
-            border-radius: 9px;
-            background: #ffffff;
-            color: #1565c0;
+        .register-link a {
+            color: #0f3d91;
+            font-weight: 800;
             text-decoration: none;
-            font-size: 16px;
-            font-weight: 900;
         }
 
-        .register-button:active {
-            background: #f1f6fc;
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 18px;
+            font-size: 12px;
+            color: #64748b;
         }
 
         @media (max-width: 480px) {
@@ -245,12 +280,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 padding: 14px;
             }
 
-            .card {
-                padding: 24px 18px;
-                border-radius: 16px;
+            .login-card {
+                padding: 27px 19px;
+                border-radius: 20px;
             }
 
-            h1 {
+            .brand h1 {
                 font-size: 24px;
             }
         }
@@ -259,14 +294,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <body>
 
-<div class="container">
+<div class="login-wrapper">
 
-    <div class="card">
+    <div class="login-card">
 
-        <h1>تسجيل الدخول</h1>
+        <div class="brand">
+            <div class="logo">
+                <div class="logo-main">المحفظة</div>
+                <div class="logo-sub">الذكية</div>
+            </div>
 
-        <div class="subtitle">
-            مرحبًا بك في المحفظة الذكية
+            <h1>المحفظة الذكية</h1>
+            <p>تسجيل الدخول إلى حسابك</p>
         </div>
 
         <?php if ($error !== ''): ?>
@@ -275,70 +314,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         <?php endif; ?>
 
-        <form method="POST" action="login.php">
+        <form method="POST" action="">
 
-            <input
-                type="hidden"
-                name="_csrf"
-                value="<?= e(csrfToken()) ?>"
-            >
+            <div class="form-group">
+                <label for="login">رقم الهاتف أو البريد الإلكتروني</label>
 
-            <label for="phone">
-                رقم الهاتف
-            </label>
+                <input
+                    type="text"
+                    id="login"
+                    name="login"
+                    value="<?= htmlspecialchars($loginValue, ENT_QUOTES, 'UTF-8') ?>"
+                    placeholder="أدخل رقم الهاتف أو البريد الإلكتروني"
+                    autocomplete="username"
+                    required
+                >
+            </div>
 
-            <input
-                type="tel"
-                id="phone"
-                name="phone"
-                required
-                autocomplete="tel"
-                inputmode="tel"
-                value="<?= htmlspecialchars(
-                    $phone,
-                    ENT_QUOTES,
-                    'UTF-8'
-                ) ?>"
-                placeholder="أدخل رقم الهاتف"
-            >
+            <div class="form-group">
+                <label for="password">كلمة المرور</label>
 
-            <label for="password">
-                كلمة المرور
-            </label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    placeholder="أدخل كلمة المرور"
+                    autocomplete="current-password"
+                    required
+                >
+            </div>
 
-            <input
-                type="password"
-                id="password"
-                name="password"
-                required
-                autocomplete="current-password"
-                placeholder="أدخل كلمة المرور"
-            >
-
-            <button type="submit">
+            <button type="submit" class="login-button">
                 تسجيل الدخول
             </button>
 
         </form>
 
-        <div class="register-box">
-
-            <p class="register-text">
-                ليس لديك حساب؟
-            </p>
-
-            <a
-                href="register.php"
-                class="register-button"
-            >
-                إنشاء حساب جديد
-            </a>
-
+        <div class="register-link">
+            ليس لديك حساب؟
+            <a href="<?= e(appUrl('/register.php')) ?>">إنشاء حساب جديد</a>
         </div>
 
+    </div>
+
+    <div class="footer">
+        المحفظة الذكية
     </div>
 
 </div>
 
 </body>
 </html>
+

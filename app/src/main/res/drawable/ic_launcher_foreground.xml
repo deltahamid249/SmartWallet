@@ -4,26 +4,21 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group
-        android:scaleX="0.65"
-        android:scaleY="0.65"
-        android:translateX="18.9"
-        android:translateY="18.9">
-        <!-- Main Wallet Card / Body -->
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M18,24h72c4.4,0 8,3.6 8,8v44c0,4.4 -3.6,8 -8,8H18c-4.4,0 -8,-3.6 -8,-8V32C10,27.6 13.6,24 18,24z" />
-        <!-- Top flap accent -->
-        <path
-            android:fillColor="#E2E8F0"
-            android:pathData="M24,24h60v6H24z" />
-        <!-- Emerald clasp badge -->
-        <path
-            android:fillColor="#16A34A"
-            android:pathData="M66,42h32c3.3,0 6,2.7 6,6v12c0,3.3 -2.7,6 -6,6H66c-3.3,0 -6,-2.7 -6,-6V48C60,44.7 62.7,42 66,42z" />
-        <!-- Clasp circle / coin -->
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M78,54m-4,0a4,4 0 1,0 8,0a4,4 0 1,0 -8,0" />
-    </group>
+    <!-- Centered within the 66dp safe zone (21dp to 87dp) -->
+    <!-- Wallet base body -->
+    <path
+        android:fillColor="#16A34A"
+        android:pathData="M27,38 C27,33.58 30.58,30 35,30 L73,30 C77.42,30 81,33.58 81,38 L81,70 C81,74.42 77.42,78 73,78 L35,78 C30.58,78 27,74.42 27,70 Z" />
+    <!-- Wallet flap & clasp -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M56,48 L79,48 C81.2,48 83,49.8 83,52 L83,56 C83,58.2 81.2,60 79,60 L56,60 C53.8,60 52,58.2 52,56 L52,52 C52,49.8 53.8,48 56,48 Z" />
+    <!-- Clasp button -->
+    <path
+        android:fillColor="#0D2238"
+        android:pathData="M72,54 m-2.5,0 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0" />
+    <!-- Accent line / card top -->
+    <path
+        android:fillColor="#E2E8F0"
+        android:pathData="M33,36 L75,36 C76.1,36 77,36.9 77,38 L77,41 L31,41 L31,38 C31,36.9 31.9,36 33,36 Z" />
 </vector>

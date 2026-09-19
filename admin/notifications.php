@@ -92,6 +92,9 @@ $typeLabels = [
     'danger' => 'تحذير',
 ];
 
+/**
+ * إنشاء رابط للعنصر المرتبط بالإشعار الإداري إن وجد.
+ */
 function notificationLink(?string $targetType, ?int $targetId): ?string
 {
     if (!$targetType || !$targetId) {

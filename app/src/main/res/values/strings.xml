@@ -1,5 +1,3 @@
 <resources>
-    <string name="app_name">SmartWallet</string>
-    <string name="wallet_title_arabic">المحفظة الذكية</string>
-    <string name="currency_sdg">SDG</string>
+    <string name="app_name">Smart Wallet</string>
 </resources>

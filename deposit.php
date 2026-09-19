@@ -26,22 +26,19 @@ $walletId = (int) $wallet['id'];
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'demo_deposit') {
     if (!verifyCsrf($_POST['csrf_token'] ?? null)) {
         flash('error', 'طلب غير صالح.');
-        header('Location: /deposit.php');
-        exit;
+        redirectTo('/deposit.php');
     }
 
     if (!consumeActionToken('demo_deposit', $_POST['action_token'] ?? null)) {
         flash('error', 'انتهت صلاحية الطلب، حاول مرة أخرى.');
-        header('Location: /deposit.php');
-        exit;
+        redirectTo('/deposit.php');
     }
 
     $amount = normalizeAmount($_POST['amount'] ?? null);
 
     if ($amount === null || bccomp($amount, '0.00', 2) <= 0) {
         flash('error', 'أدخل مبلغًا تجريبيًا صحيحًا.');
-        header('Location: /deposit.php');
-        exit;
+        redirectTo('/deposit.php');
     }
 
     try {
@@ -108,22 +105,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'demo_
         flash('error', 'تعذر إضافة الرصيد التجريبي.');
     }
 
-    header('Location: /deposit.php');
-    exit;
+    redirectTo('/deposit.php');
 }
 
 /* معالجة طلب الإيداع الحقيقي */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'deposit') {
     if (!verifyCsrf($_POST['csrf_token'] ?? null)) {
         flash('error', 'طلب غير صالح.');
-        header('Location: /deposit.php');
-        exit;
+        redirectTo('/deposit.php');
     }
 
     if (!consumeActionToken('deposit', $_POST['action_token'] ?? null)) {
         flash('error', 'انتهت صلاحية الطلب، حاول مرة أخرى.');
-        header('Location: /deposit.php');
-        exit;
+        redirectTo('/deposit.php');
     }
 
     $amount = normalizeAmount($_POST['amount'] ?? null);
@@ -134,20 +128,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'depos
 
     if ($amount === null || bccomp($amount, '0.00', 2) <= 0) {
         flash('error', 'أدخل مبلغًا صحيحًا.');
-        header('Location: /deposit.php');
-        exit;
+        redirectTo('/deposit.php');
     }
 
     if ($bankName === '') {
         flash('error', 'أدخل اسم البنك.');
-        header('Location: /deposit.php');
-        exit;
+        redirectTo('/deposit.php');
     }
 
     if ($bankReference === '') {
         flash('error', 'أدخل رقم مرجع التحويل.');
-        header('Location: /deposit.php');
-        exit;
+        redirectTo('/deposit.php');
     }
 
     $proofPath = null;
@@ -282,8 +273,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'depos
         );
     }
 
-    header('Location: /deposit.php');
-    exit;
+    redirectTo('/deposit.php');
 }
 
 /* تحديث الرصيد بعد أي عملية */
@@ -320,6 +310,9 @@ $csrfToken = csrfToken();
 $depositActionToken = actionToken('deposit');
 $demoActionToken = actionToken('demo_deposit');
 
+/**
+ * تحويل حالة الإيداع المخزنة إلى عنوان عربي.
+ */
 function depositStatusLabel(string $status): string
 {
     return match ($status) {

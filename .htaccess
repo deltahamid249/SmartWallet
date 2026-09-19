@@ -1,5 +1,8 @@
 Options -Indexes
 
+# منع عرض ملفات إعدادات ونسخ قاعدة البيانات الحساسة عبر المتصفح.
+# ملاحظة: تنفيذ PHP نفسه يتم بواسطة Apache/PHP في XAMPP،
+# لذلك يجب فتح المشروع عبر http://localhost وليس file:// أو Live Server.
 <FilesMatch "\.(sql|env|log|ini|bak|backup)$">
     Require all denied
 </FilesMatch>

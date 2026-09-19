@@ -33,14 +33,12 @@ if (
 ) {
     if (!verifyCsrf($_POST['csrf_token'] ?? null)) {
         flash('error', 'طلب غير صالح.');
-        header('Location: /withdraw.php');
-        exit;
+        redirectTo('/withdraw.php');
     }
 
     if (!consumeActionToken('withdraw', $_POST['action_token'] ?? null)) {
         flash('error', 'انتهت صلاحية الطلب، حاول مرة أخرى.');
-        header('Location: /withdraw.php');
-        exit;
+        redirectTo('/withdraw.php');
     }
 
     $amount = normalizeAmount($_POST['amount'] ?? null);
@@ -51,20 +49,17 @@ if (
 
     if ($amount === null || bccomp($amount, '0.00', 2) <= 0) {
         flash('error', 'أدخل مبلغ سحب صحيح.');
-        header('Location: /withdraw.php');
-        exit;
+        redirectTo('/withdraw.php');
     }
 
     if ($recipientName === '') {
         flash('error', 'أدخل اسم المستفيد.');
-        header('Location: /withdraw.php');
-        exit;
+        redirectTo('/withdraw.php');
     }
 
     if ($recipientPhone === '') {
         flash('error', 'أدخل رقم هاتف المستفيد.');
-        header('Location: /withdraw.php');
-        exit;
+        redirectTo('/withdraw.php');
     }
 
     $allowedMethods = [
@@ -75,8 +70,7 @@ if (
 
     if (!in_array($withdrawalMethod, $allowedMethods, true)) {
         flash('error', 'طريقة السحب غير صالحة.');
-        header('Location: /withdraw.php');
-        exit;
+        redirectTo('/withdraw.php');
     }
 
     try {
@@ -186,8 +180,7 @@ if (
         );
     }
 
-    header('Location: /withdraw.php');
-    exit;
+    redirectTo('/withdraw.php');
 }
 
 /* تحديث الرصيد بعد الطلب */
@@ -232,6 +225,9 @@ $errorMessage = flash('error');
 $csrfToken = csrfToken();
 $actionToken = actionToken('withdraw');
 
+/**
+ * تحويل حالة السحب إلى عنوان عربي.
+ */
 function withdrawalStatusLabel(string $status): string
 {
     return match ($status) {
@@ -243,6 +239,9 @@ function withdrawalStatusLabel(string $status): string
     };
 }
 
+/**
+ * تحويل طريقة السحب إلى عنوان عربي.
+ */
 function withdrawalMethodLabel(string $method): string
 {
     return match ($method) {

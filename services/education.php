@@ -224,6 +224,9 @@ $stmt->execute([
 
 $requests = $stmt->fetchAll();
 
+/**
+ * إرجاع اسم الجهة التعليمية بدل الرمز الداخلي.
+ */
 function educationProviderLabel(
     string $provider,
     array $providers

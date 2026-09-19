@@ -18,8 +18,7 @@ $user = $stmt->fetch();
 
 if (!$user) {
     logoutUser();
-    header('Location: /login.php');
-    exit;
+    redirectTo('/login.php');
 }
 ?>
 <!DOCTYPE html>
